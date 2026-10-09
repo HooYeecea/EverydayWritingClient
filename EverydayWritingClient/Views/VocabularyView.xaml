@@ -1,0 +1,39 @@
+<UserControl x:Class="EverydayWritingClient.Views.VocabularyView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="{DynamicResource BgBrush}">
+    <Grid Margin="28,22">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="320" />
+        </Grid.ColumnDefinitions>
+        <DockPanel Margin="0,0,16,0">
+            <StackPanel DockPanel.Dock="Top">
+                <TextBlock Text="个人词库" Style="{StaticResource PageTitle}" />
+                <DockPanel Margin="0,14,0,10">
+                    <Button DockPanel.Dock="Right" Content="搜索" Style="{StaticResource GhostButton}" Margin="8,0,0,0" Click="SearchClick" />
+                    <TextBox x:Name="SearchBox" Style="{StaticResource FieldBox}" />
+                </DockPanel>
+            </StackPanel>
+            <ListBox x:Name="List" BorderBrush="{DynamicResource BorderBrush}" Background="{DynamicResource SurfaceBrush}" />
+        </DockPanel>
+        <Border Grid.Column="1" Style="{StaticResource Card}">
+            <StackPanel>
+                <TextBlock Text="新增词条" FontFamily="Georgia" FontSize="20" Foreground="{DynamicResource TextBrush}" />
+                <TextBlock Text="单词" Style="{StaticResource SectionLabel}" Margin="0,12,0,6" />
+                <TextBox x:Name="WordBox" Style="{StaticResource FieldBox}" />
+                <TextBlock Text="词性" Style="{StaticResource SectionLabel}" Margin="0,10,0,6" />
+                <TextBox x:Name="PosBox" Style="{StaticResource FieldBox}" Text="n." />
+                <TextBlock Text="释义" Style="{StaticResource SectionLabel}" Margin="0,10,0,6" />
+                <TextBox x:Name="TranslationBox" Style="{StaticResource FieldBox}" AcceptsReturn="True" MinHeight="64" />
+                <TextBlock Text="例句" Style="{StaticResource SectionLabel}" Margin="0,10,0,6" />
+                <TextBox x:Name="SentenceBox" Style="{StaticResource FieldBox}" />
+                <TextBlock Text="类型" Style="{StaticResource SectionLabel}" Margin="0,10,0,6" />
+                <ComboBox x:Name="TypeBox" Style="{StaticResource FieldCombo}" />
+                <Button Content="加入词库" Style="{StaticResource PrimaryButton}" Margin="0,14,0,8" Click="AddClick" />
+                <Button Content="删除所选" Style="{StaticResource GhostButton}" Click="DeleteClick" />
+                <TextBlock x:Name="StatusText" TextWrapping="Wrap" Margin="0,10,0,0" Foreground="{DynamicResource DangerBrush}" />
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>

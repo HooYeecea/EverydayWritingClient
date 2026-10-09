@@ -1,0 +1,41 @@
+﻿<Window x:Class="EverydayWritingClient.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Everyday Writing"
+        Height="860"
+        Width="1280"
+        MinHeight="640"
+        MinWidth="980"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource BgBrush}"
+        FontFamily="Segoe UI"
+        TextOptions.TextFormattingMode="Display">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition x:Name="SidebarColumn" Width="248" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <Border Grid.Column="0" Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,1,0">
+            <DockPanel>
+                <Grid DockPanel.Dock="Top" Margin="16,18,12,8">
+                    <StackPanel x:Name="BrandExpanded">
+                        <TextBlock Text="Everyday Writing" FontFamily="Georgia" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource TextBrush}" />
+                        <TextBlock x:Name="BrandSubtitle" Text="每日英语写作" FontSize="12" Foreground="{DynamicResource MutedBrush}" Margin="0,2,0,0" />
+                    </StackPanel>
+                    <TextBlock x:Name="BrandCollapsed" Text="EW" FontFamily="Georgia" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" Visibility="Collapsed" Foreground="{DynamicResource TextBrush}" />
+                </Grid>
+                <StackPanel DockPanel.Dock="Bottom" Margin="10,8,10,12">
+                    <Button x:Name="CollapseButton" Content="收起侧栏" Style="{StaticResource GhostButton}" Margin="0,0,0,8" Click="ToggleCollapse" />
+                    <Button x:Name="SwitchModeButton" Content="管理后台" Style="{StaticResource GhostButton}" Margin="0,0,0,8" Click="ToggleMode" />
+                    <Button x:Name="LogoutButton" Content="退出登录" Style="{StaticResource GhostButton}" Click="LogoutClick" />
+                </StackPanel>
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel x:Name="NavPanel" Margin="8,4,8,8" />
+                </ScrollViewer>
+            </DockPanel>
+        </Border>
+
+        <ContentControl x:Name="PageHost" Grid.Column="1" />
+    </Grid>
+</Window>

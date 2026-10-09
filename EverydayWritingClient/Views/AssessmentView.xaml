@@ -1,0 +1,20 @@
+<UserControl x:Class="EverydayWritingClient.Views.AssessmentView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="{DynamicResource BgBrush}">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="28,22" MaxWidth="920" HorizontalAlignment="Left">
+            <TextBlock Text="个人测评" Style="{StaticResource PageTitle}" />
+            <TextBlock Text="这里是写作统计，和英语能力测评不是同一件事。" Margin="0,8,0,14" Foreground="{DynamicResource MutedBrush}" />
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
+                <Button Content="全部" Style="{StaticResource GhostButton}" Margin="0,0,8,0" Click="PeriodClick" Tag="all" />
+                <Button Content="7 天" Style="{StaticResource GhostButton}" Margin="0,0,8,0" Click="PeriodClick" Tag="7d" />
+                <Button Content="30 天" Style="{StaticResource GhostButton}" Margin="0,0,8,0" Click="PeriodClick" Tag="30d" />
+                <Button Content="90 天" Style="{StaticResource GhostButton}" Click="PeriodClick" Tag="90d" />
+            </StackPanel>
+            <UniformGrid x:Name="Cards" Columns="3" Margin="0,0,0,16" />
+            <TextBlock x:Name="Body" FontFamily="Georgia" FontSize="15" TextWrapping="Wrap" Foreground="{DynamicResource TextBrush}" />
+            <TextBlock x:Name="StatusText" Margin="0,12,0,0" Foreground="{DynamicResource DangerBrush}" />
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

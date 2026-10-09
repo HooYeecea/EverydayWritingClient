@@ -1,0 +1,30 @@
+<UserControl x:Class="EverydayWritingClient.Controls.RichEditor"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <DockPanel>
+        <Border DockPanel.Dock="Top" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="8,6" Background="{DynamicResource SubtleBrush}">
+            <StackPanel Orientation="Horizontal">
+                <Button Content="B" Style="{StaticResource ToolButton}" Click="BoldClick" ToolTip="加粗" />
+                <Button Content="I" Style="{StaticResource ToolButton}" Click="ItalicClick" ToolTip="斜体" FontStyle="Italic" />
+                <Button Content="U" Style="{StaticResource ToolButton}" Click="UnderlineClick" ToolTip="下划线" />
+                <Button Content="正文" Style="{StaticResource ToolButton}" Click="BodyClick" />
+                <Button Content="标题 1" Style="{StaticResource ToolButton}" Click="H1Click" />
+                <Button Content="标题 2" Style="{StaticResource ToolButton}" Click="H2Click" />
+                <Button Content="标题 3" Style="{StaticResource ToolButton}" Click="H3Click" />
+                <Button Content="列表" Style="{StaticResource ToolButton}" Click="ListClick" />
+                <Button Content="引用" Style="{StaticResource ToolButton}" Click="QuoteClick" />
+            </StackPanel>
+        </Border>
+        <RichTextBox x:Name="Editor"
+                     BorderThickness="0"
+                     Background="Transparent"
+                     FontFamily="Georgia"
+                     FontSize="17"
+                     AcceptsReturn="True"
+                     VerticalScrollBarVisibility="Auto"
+                     Padding="4"
+                     SpellCheck.IsEnabled="True"
+                     Language="en-US"
+                     TextChanged="EditorTextChanged" />
+    </DockPanel>
+</UserControl>

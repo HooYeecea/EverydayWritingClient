@@ -1,0 +1,34 @@
+<UserControl x:Class="EverydayWritingClient.Views.SettingsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="{DynamicResource BgBrush}">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="28,22" MaxWidth="640" HorizontalAlignment="Left">
+            <TextBlock Text="系统设置" Style="{StaticResource PageTitle}" />
+            <TextBlock Text="界面语言目前只有简体中文。主题和写作偏好会尽量同步到账号。" Margin="0,8,0,16" Foreground="{DynamicResource MutedBrush}" TextWrapping="Wrap" />
+
+            <TextBlock Text="主题" Style="{StaticResource SectionLabel}" />
+            <ComboBox x:Name="ThemeBox" Style="{StaticResource FieldCombo}" Margin="0,0,0,12" />
+            <TextBlock Text="编辑器字号" Style="{StaticResource SectionLabel}" />
+            <ComboBox x:Name="FontBox" Style="{StaticResource FieldCombo}" Margin="0,0,0,12" />
+            <TextBlock Text="自动保存间隔" Style="{StaticResource SectionLabel}" />
+            <ComboBox x:Name="SaveBox" Style="{StaticResource FieldCombo}" Margin="0,0,0,12" />
+            <TextBlock Text="登录后的首页" Style="{StaticResource SectionLabel}" />
+            <ComboBox x:Name="HomeBox" Style="{StaticResource FieldCombo}" Margin="0,0,0,12" />
+            <CheckBox x:Name="ConfirmBox" Content="提交前确认" Margin="0,0,0,14" Foreground="{DynamicResource TextBrush}" />
+            <Button Content="保存偏好" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Left" Click="SavePrefsClick" />
+
+            <TextBlock Text="AI 连接" FontFamily="Georgia" FontSize="22" Margin="0,28,0,8" Foreground="{DynamicResource TextBrush}" />
+            <TextBlock Text="自有 Key 加密后只保存在这台电脑。不填则使用免费通道。" TextWrapping="Wrap" Foreground="{DynamicResource MutedBrush}" Margin="0,0,0,10" />
+            <TextBlock Text="供应商" Style="{StaticResource SectionLabel}" />
+            <ComboBox x:Name="ProviderBox" Style="{StaticResource FieldCombo}" Margin="0,0,0,12" SelectionChanged="ProviderChanged" />
+            <TextBlock Text="模型" Style="{StaticResource SectionLabel}" />
+            <ComboBox x:Name="ModelBox" Style="{StaticResource FieldCombo}" Margin="0,0,0,12" />
+            <TextBlock Text="API Key" Style="{StaticResource SectionLabel}" />
+            <PasswordBox x:Name="KeyBox" Style="{StaticResource FieldPassword}" Margin="0,0,0,12" />
+            <Button Content="保存 AI 连接" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Left" Click="SaveAiClick" />
+            <Button Content="修改登录密码" Style="{StaticResource GhostButton}" HorizontalAlignment="Left" Margin="0,18,0,0" Click="PasswordClick" />
+            <TextBlock x:Name="StatusText" TextWrapping="Wrap" Margin="0,12,0,0" Foreground="{DynamicResource MutedBrush}" />
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

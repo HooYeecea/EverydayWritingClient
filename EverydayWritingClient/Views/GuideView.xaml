@@ -1,0 +1,22 @@
+<UserControl x:Class="EverydayWritingClient.Views.GuideView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="{DynamicResource BgBrush}">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="28,22" MaxWidth="760" HorizontalAlignment="Left">
+            <TextBlock Text="使用指南" Style="{StaticResource PageTitle}" />
+            <TextBlock Margin="0,12,0,0" FontFamily="Georgia" FontSize="16" TextWrapping="Wrap" Foreground="{DynamicResource TextBrush}"
+                       Text="Everyday Writing 用来每天写一篇英语作文。桌面端和网页端共用同一个账号、草稿、提交、词库和打卡。" />
+            <TextBlock Margin="0,16,0,0" FontSize="18" FontFamily="Georgia" Text="怎么练" Foreground="{DynamicResource TextBrush}" />
+            <TextBlock Margin="0,8,0,0" TextWrapping="Wrap" Foreground="{DynamicResource TextBrush}"
+                       Text="在「开始写作」换一道题目，或自己拟题。正文支持加粗、标题、列表和引用。草稿会自动保存；正式提交后会计入打卡，并可以在「写作记录」里回看。" />
+            <TextBlock Margin="0,16,0,0" FontSize="18" FontFamily="Georgia" Text="AI" Foreground="{DynamicResource TextBrush}" />
+            <TextBlock Margin="0,8,0,0" TextWrapping="Wrap" Foreground="{DynamicResource TextBrush}"
+                       Text="可以在系统设置里保存自己的模型 Key，也可以走管理员打开的免费通道。提交时可选语法、结构和提升建议；写作时也可以在停笔后要一条短建议。Key 只留在这台电脑。" />
+            <TextBlock Margin="0,16,0,0" FontSize="18" FontFamily="Georgia" Text="测评和计划" Foreground="{DynamicResource TextBrush}" />
+            <TextBlock Margin="0,8,0,0" TextWrapping="Wrap" Foreground="{DynamicResource TextBrush}"
+                       Text="「个人测评」看的是你已经写过的作文统计。「英语能力测评」在用户中心进入，包含自评、客观题和两篇短写作，完成后生成个人计划。" />
+            <Button Content="去做能力测评" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Left" Margin="0,18,0,0" Click="OpenTest" />
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

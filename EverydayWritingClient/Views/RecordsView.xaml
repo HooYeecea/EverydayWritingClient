@@ -1,0 +1,50 @@
+<UserControl x:Class="EverydayWritingClient.Views.RecordsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="{DynamicResource BgBrush}">
+    <Grid Margin="28,22">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <StackPanel>
+            <TextBlock Text="写作记录" Style="{StaticResource PageTitle}" />
+            <DockPanel Margin="0,14,0,12">
+                <Button DockPanel.Dock="Right" Content="刷新" Style="{StaticResource GhostButton}" Margin="8,0,0,0" Click="ReloadClick" />
+                <StackPanel Orientation="Horizontal">
+                    <Button x:Name="DraftTab" Content="草稿" Style="{StaticResource PrimaryButton}" Margin="0,0,8,0" Click="ShowDraftsClick" />
+                    <Button x:Name="SubmitTab" Content="提交记录" Style="{StaticResource GhostButton}" Click="ShowSubmitsClick" />
+                </StackPanel>
+            </DockPanel>
+            <DockPanel Margin="0,0,0,10">
+                <Button DockPanel.Dock="Right" Content="搜索" Style="{StaticResource GhostButton}" Margin="8,0,0,0" Click="ReloadClick" />
+                <TextBox x:Name="KeywordBox" Style="{StaticResource FieldBox}" ToolTip="搜索提交标题或正文" />
+            </DockPanel>
+        </StackPanel>
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="360" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <ListBox x:Name="List" Margin="0,0,12,0" BorderBrush="{DynamicResource BorderBrush}" Background="{DynamicResource SurfaceBrush}" SelectionChanged="ListChanged" />
+            <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto">
+                <StackPanel>
+                    <TextBlock x:Name="DetailTitle" Style="{StaticResource PageTitle}" FontSize="22" TextWrapping="Wrap" />
+                    <TextBlock x:Name="DetailMeta" Margin="0,8,0,12" Foreground="{DynamicResource MutedBrush}" TextWrapping="Wrap" />
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                        <Button x:Name="ContinueButton" Content="继续编辑" Style="{StaticResource PrimaryButton}" Margin="0,0,8,0" Click="ContinueClick" />
+                        <Button x:Name="DeleteButton" Content="删除" Style="{StaticResource GhostButton}" Click="DeleteClick" />
+                    </StackPanel>
+                    <TextBlock x:Name="DetailBody" FontFamily="Georgia" FontSize="16" TextWrapping="Wrap" Foreground="{DynamicResource TextBrush}" />
+                    <TextBlock x:Name="AiBody" FontFamily="Georgia" FontSize="14" TextWrapping="Wrap" Margin="0,16,0,0" Foreground="{DynamicResource TextBrush}" />
+                    <DockPanel Margin="0,16,0,0">
+                        <Button DockPanel.Dock="Right" Content="发送追问" Style="{StaticResource PrimaryButton}" Margin="8,0,0,0" Click="ChatClick" />
+                        <TextBox x:Name="ChatBox" Style="{StaticResource FieldBox}" />
+                    </DockPanel>
+                    <TextBlock x:Name="ChatBody" TextWrapping="Wrap" Margin="0,10,0,0" Foreground="{DynamicResource TextBrush}" />
+                    <TextBlock x:Name="StatusText" Margin="0,10,0,0" Foreground="{DynamicResource DangerBrush}" TextWrapping="Wrap" />
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+    </Grid>
+</UserControl>
