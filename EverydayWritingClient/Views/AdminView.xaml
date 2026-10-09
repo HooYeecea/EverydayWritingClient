@@ -2,34 +2,64 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              Background="{DynamicResource BgBrush}">
-    <DockPanel Margin="28,22">
-        <StackPanel DockPanel.Dock="Top">
+    <Grid Margin="28,22">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <StackPanel>
             <TextBlock x:Name="TitleText" Style="{StaticResource PageTitle}" Text="数据中心" />
-            <TextBlock x:Name="StatusText" Margin="0,8,0,10" TextWrapping="Wrap" Foreground="{DynamicResource MutedBrush}" />
-            <DockPanel Margin="0,0,0,10">
-                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                    <Button Content="刷新" Style="{StaticResource GhostButton}" Margin="8,0,0,0" Click="ReloadClick" />
-                    <Button x:Name="CreateButton" Content="新建" Style="{StaticResource PrimaryButton}" Margin="8,0,0,0" Click="CreateClick" />
-                    <Button x:Name="SaveButton" Content="保存修改" Style="{StaticResource GhostButton}" Margin="8,0,0,0" Click="SaveClick" />
-                    <Button x:Name="DeleteButton" Content="删除" Style="{StaticResource GhostButton}" Margin="8,0,0,0" Click="DeleteClick" />
-                    <Button x:Name="ExtraButton" Content="更多" Style="{StaticResource GhostButton}" Margin="8,0,0,0" Visibility="Collapsed" Click="ExtraClick" />
-                </StackPanel>
-                <TextBox x:Name="SearchBox" Style="{StaticResource FieldBox}" ToolTip="搜索" />
-            </DockPanel>
+            <TextBlock x:Name="StatusText" Margin="0,8,0,0" TextWrapping="Wrap" Foreground="{DynamicResource MutedBrush}" />
         </StackPanel>
-        <DockPanel DockPanel.Dock="Bottom" Margin="0,10,0,0">
-            <Button DockPanel.Dock="Left" Content="上一页" Style="{StaticResource GhostButton}" Click="PrevClick" />
-            <Button DockPanel.Dock="Right" Content="下一页" Style="{StaticResource GhostButton}" Click="NextClick" />
-            <TextBlock x:Name="PageText" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource MutedBrush}" />
-        </DockPanel>
-        <Grid>
+
+        <Grid Grid.Row="1" Margin="0,14,0,12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel VerticalAlignment="Center">
+                <TextBox x:Name="SearchBox" Style="{StaticResource FieldBox}" ToolTip="搜索" MaxWidth="420" HorizontalAlignment="Left" />
+                <WrapPanel x:Name="PeriodBar" Visibility="Collapsed">
+                    <Button Content="近 7 天" Tag="7d" Style="{StaticResource PrimaryButton}" Margin="0,0,8,0" Click="PeriodClick" />
+                    <Button Content="近 30 天" Tag="30d" Style="{StaticResource GhostButton}" Margin="0,0,8,0" Click="PeriodClick" />
+                    <Button Content="近 90 天" Tag="90d" Style="{StaticResource GhostButton}" Margin="0,0,8,0" Click="PeriodClick" />
+                    <Button Content="全部" Tag="all" Style="{StaticResource GhostButton}" Margin="0,0,8,0" Click="PeriodClick" />
+                </WrapPanel>
+            </StackPanel>
+            <WrapPanel Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right">
+                <Button Content="刷新" Style="{StaticResource GhostButton}" Margin="8,4,0,4" Click="ReloadClick" />
+                <Button x:Name="CreateButton" Content="新建" Style="{StaticResource PrimaryButton}" Margin="8,4,0,4" Click="CreateClick" />
+                <Button x:Name="SaveButton" Content="保存修改" Style="{StaticResource GhostButton}" Margin="8,4,0,4" Click="SaveClick" />
+                <Button x:Name="DeleteButton" Content="删除" Style="{StaticResource GhostButton}" Margin="8,4,0,4" Click="DeleteClick" />
+                <Button x:Name="ExtraButton" Content="更多" Style="{StaticResource GhostButton}" Margin="8,4,0,4" Visibility="Collapsed" Click="ExtraClick" />
+            </WrapPanel>
+        </Grid>
+
+        <ScrollViewer x:Name="SummaryHost" Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Visibility="Collapsed" SizeChanged="SummaryHostSizeChanged">
+            <StackPanel x:Name="SummaryBody" />
+        </ScrollViewer>
+
+        <Grid x:Name="ListHost" Grid.Row="2">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="1.7*" MinWidth="220" />
-                <ColumnDefinition Width="*" MinWidth="200" MaxWidth="520" />
+                <ColumnDefinition Width="*" MinWidth="220" />
             </Grid.ColumnDefinitions>
-            <DataGrid x:Name="Table" Margin="0,0,12,0" SelectionChanged="TableChanged" />
-            <TextBox x:Name="JsonBox" Grid.Column="1" Style="{StaticResource FieldBox}" AcceptsReturn="True" TextWrapping="Wrap"
-                     VerticalScrollBarVisibility="Auto" FontFamily="Consolas" FontSize="12" />
+            <DataGrid x:Name="Table" Margin="0,0,16,0" SelectionChanged="TableChanged" />
+            <DockPanel Grid.Column="1">
+                <TextBlock DockPanel.Dock="Top" Text="记录详情" Style="{StaticResource SectionLabel}" />
+                <TextBox x:Name="JsonBox" Style="{StaticResource FieldBox}" AcceptsReturn="True" TextWrapping="Wrap"
+                         VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                         FontFamily="Consolas" FontSize="12" VerticalAlignment="Stretch" />
+            </DockPanel>
         </Grid>
-    </DockPanel>
+
+        <Grid x:Name="PagerBar" Grid.Row="3" Margin="0,12,0,0">
+            <Button Content="上一页" Style="{StaticResource GhostButton}" HorizontalAlignment="Left" Click="PrevClick" />
+            <TextBlock x:Name="PageText" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource MutedBrush}" />
+            <Button Content="下一页" Style="{StaticResource GhostButton}" HorizontalAlignment="Right" Click="NextClick" />
+        </Grid>
+    </Grid>
 </UserControl>
