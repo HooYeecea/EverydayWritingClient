@@ -77,8 +77,6 @@ public partial class UserCenterView : UserControl, IRefreshOnShow
         metrics.Children.Add(Metric("字数", JsonRead.Str(stats, "totalWords"), ""));
         metrics.Children.Add(Metric("词库", JsonRead.Str(stats, "vocabularyCount"), "条"));
         profileCard.Children.Add(metrics);
-        Body.Children.Add(Card(profileCard));
-
         var editor = new StackPanel();
         editor.Children.Add(Text("昵称", 16));
         var box = new TextBox
@@ -86,8 +84,7 @@ public partial class UserCenterView : UserControl, IRefreshOnShow
             Style = (Style)FindResource("FieldBox"),
             Text = nickname,
             Margin = new Thickness(0, 4, 0, 12),
-            MaxWidth = 360,
-            HorizontalAlignment = HorizontalAlignment.Left,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
         };
         var save = new Button { Content = "保存昵称", Style = (Style)FindResource("PrimaryButton"), HorizontalAlignment = HorizontalAlignment.Left };
         save.Click += async (_, _) =>
@@ -114,7 +111,17 @@ public partial class UserCenterView : UserControl, IRefreshOnShow
             }
         };
         editor.Children.Add(test);
-        Body.Children.Add(Card(editor));
+        var columns = new Grid();
+        columns.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.3, GridUnitType.Star) });
+        columns.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        var profileBorder = Card(profileCard);
+        profileBorder.Margin = new Thickness(0, 0, 14, 14);
+        var editorBorder = Card(editor);
+        editorBorder.Margin = new Thickness(0, 0, 0, 14);
+        Grid.SetColumn(editorBorder, 1);
+        columns.Children.Add(profileBorder);
+        columns.Children.Add(editorBorder);
+        Body.Children.Add(columns);
 
         try
         {
@@ -256,7 +263,7 @@ public partial class UserCenterView : UserControl, IRefreshOnShow
     private async Task ShowUsageAsync()
     {
         var summary = await AppServices.Api.GetAsync("/usage/summary");
-        var metrics = new UniformGrid { Columns = 2 };
+        var metrics = new UniformGrid { Columns = 4 };
         metrics.Children.Add(Metric("本月消耗", JsonRead.Str(summary, "consumedThisMonth"), "Token"));
         metrics.Children.Add(Metric("累计消耗", JsonRead.Str(summary, "totalConsumed"), "Token"));
         metrics.Children.Add(Metric("调用次数", JsonRead.Str(summary, "totalCalls"), "次"));

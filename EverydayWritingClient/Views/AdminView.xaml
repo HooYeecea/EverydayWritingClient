@@ -24,8 +24,8 @@
         </DockPanel>
         <Grid>
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="380" />
+                <ColumnDefinition Width="1.7*" MinWidth="220" />
+                <ColumnDefinition Width="*" MinWidth="200" MaxWidth="520" />
             </Grid.ColumnDefinitions>
             <DataGrid x:Name="Table" Margin="0,0,12,0" SelectionChanged="TableChanged" />
             <TextBox x:Name="JsonBox" Grid.Column="1" Style="{StaticResource FieldBox}" AcceptsReturn="True" TextWrapping="Wrap"

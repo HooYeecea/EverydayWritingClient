@@ -3,16 +3,16 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:controls="clr-namespace:EverydayWritingClient.Controls"
              Background="{DynamicResource BgBrush}">
-    <Grid Margin="28,22,28,22">
+    <Grid Margin="28,24">
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*" />
-            <ColumnDefinition Width="320" />
+            <ColumnDefinition Width="2*" MinWidth="280" />
+            <ColumnDefinition Width="*" MinWidth="220" MaxWidth="460" />
         </Grid.ColumnDefinitions>
 
-        <DockPanel Grid.Column="0" Margin="0,0,18,0">
+        <DockPanel Grid.Column="0" Margin="0,0,16,0">
             <StackPanel DockPanel.Dock="Top">
                 <TextBlock Text="开始写作" Style="{StaticResource PageTitle}" />
-                <TextBlock Text="题目、草稿和正式提交与网页端共用。" Margin="0,6,0,14" Foreground="{DynamicResource MutedBrush}" />
+                <TextBlock Text="题目、草稿和正式提交与网页端共用。" Margin="0,6,0,14" Foreground="{DynamicResource MutedBrush}" TextWrapping="Wrap" />
                 <DockPanel Margin="0,0,0,10">
                     <Button DockPanel.Dock="Right" Content="换一题" Style="{StaticResource GhostButton}" Margin="8,0,0,0" Click="RandomTopicClick" />
                     <ComboBox x:Name="TypeBox" Style="{StaticResource FieldCombo}" />
@@ -27,21 +27,21 @@
             </Border>
         </DockPanel>
 
-        <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto">
+        <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
             <StackPanel>
                 <Border Style="{StaticResource Card}" Margin="0,0,0,12">
                     <StackPanel>
                         <TextBlock Text="写作辅助" FontFamily="Georgia" FontSize="18" Foreground="{DynamicResource TextBrush}" />
                         <TextBlock x:Name="WordText" Margin="0,8,0,8" Foreground="{DynamicResource MutedBrush}" Text="0 词" />
-                        <CheckBox x:Name="FocusLockBox" Content="专注锁：禁止切换页面" Margin="0,0,0,8" Foreground="{DynamicResource TextBrush}" Checked="FocusChanged" Unchecked="FocusChanged" />
-                        <CheckBox x:Name="GrammarBox" Content="提交时语法检查" Margin="0,0,0,4" Foreground="{DynamicResource TextBrush}" />
-                        <CheckBox x:Name="StructureBox" Content="提交时结构评分" Margin="0,0,0,4" Foreground="{DynamicResource TextBrush}" />
-                        <CheckBox x:Name="SuggestionBox" Content="提交时提升建议" Margin="0,0,0,4" Foreground="{DynamicResource TextBrush}" />
-                        <CheckBox x:Name="RealtimeBox" Content="停笔后实时建议" Margin="0,0,0,10" Foreground="{DynamicResource TextBrush}" />
-                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                            <Button Content="保存草稿" Style="{StaticResource GhostButton}" Margin="0,0,8,0" Click="SaveDraftClick" />
-                            <Button Content="正式提交" Style="{StaticResource PrimaryButton}" Click="SubmitClick" />
-                        </StackPanel>
+                        <CheckBox x:Name="FocusLockBox" Content="专注锁：禁止切换页面" Margin="0,0,0,8" Checked="FocusChanged" Unchecked="FocusChanged" />
+                        <CheckBox x:Name="GrammarBox" Content="提交时语法检查" Margin="0,0,0,4" />
+                        <CheckBox x:Name="StructureBox" Content="提交时结构评分" Margin="0,0,0,4" />
+                        <CheckBox x:Name="SuggestionBox" Content="提交时提升建议" Margin="0,0,0,4" />
+                        <CheckBox x:Name="RealtimeBox" Content="停笔后实时建议" Margin="0,0,0,10" />
+                        <WrapPanel Margin="0,0,0,8">
+                            <Button Content="保存草稿" Style="{StaticResource GhostButton}" Margin="0,0,8,8" Click="SaveDraftClick" />
+                            <Button Content="正式提交" Style="{StaticResource PrimaryButton}" Margin="0,0,0,8" Click="SubmitClick" />
+                        </WrapPanel>
                         <TextBlock x:Name="StatusText" TextWrapping="Wrap" Foreground="{DynamicResource MutedBrush}" />
                     </StackPanel>
                 </Border>
@@ -54,11 +54,11 @@
                             <TextBlock DockPanel.Dock="Left" Text="倒计时分钟" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource MutedBrush}" />
                             <TextBox x:Name="MinutesBox" Style="{StaticResource FieldBox}" Text="30" />
                         </DockPanel>
-                        <StackPanel Orientation="Horizontal">
-                            <Button Content="开始" Style="{StaticResource GhostButton}" Margin="0,0,8,0" Click="StartTimerClick" />
-                            <Button Content="暂停" Style="{StaticResource GhostButton}" Margin="0,0,8,0" Click="PauseTimerClick" />
-                            <Button Content="重置" Style="{StaticResource GhostButton}" Click="ResetTimerClick" />
-                        </StackPanel>
+                        <WrapPanel>
+                            <Button Content="开始" Style="{StaticResource GhostButton}" Margin="0,0,8,8" Click="StartTimerClick" />
+                            <Button Content="暂停" Style="{StaticResource GhostButton}" Margin="0,0,8,8" Click="PauseTimerClick" />
+                            <Button Content="重置" Style="{StaticResource GhostButton}" Margin="0,0,0,8" Click="ResetTimerClick" />
+                        </WrapPanel>
                     </StackPanel>
                 </Border>
 
