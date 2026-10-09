@@ -62,23 +62,50 @@ public partial class UserCenterView : UserControl, IRefreshOnShow
     private async Task ShowOverviewAsync()
     {
         var profile = await AppServices.Api.GetAsync("/user/profile");
-        AddText(JsonRead.Str(profile, "nickname"), 24);
-        AddText(JsonRead.Str(profile, "email"));
+        var nickname = JsonRead.Str(profile, "nickname");
+        var email = JsonRead.Str(profile, "email");
         var stats = JsonRead.Prop(profile, "stats");
-        AddText($"提交 {JsonRead.Str(stats, "totalWritings")} 篇 · 字数 {JsonRead.Str(stats, "totalWords")} · 词库 {JsonRead.Str(stats, "vocabularyCount")}");
-        var box = new TextBox { Style = (Style)FindResource("FieldBox"), Text = JsonRead.Str(profile, "nickname"), Margin = new Thickness(0, 12, 0, 8), Width = 280, HorizontalAlignment = HorizontalAlignment.Left };
+        var profileCard = new StackPanel();
+        profileCard.Children.Add(Text(string.IsNullOrWhiteSpace(nickname) ? email : nickname, 24));
+        if (!string.IsNullOrWhiteSpace(nickname))
+        {
+            profileCard.Children.Add(Text(email));
+        }
+
+        var metrics = new UniformGrid { Columns = 3, Margin = new Thickness(0, 8, 0, 0) };
+        metrics.Children.Add(Metric("提交", JsonRead.Str(stats, "totalWritings"), "篇"));
+        metrics.Children.Add(Metric("字数", JsonRead.Str(stats, "totalWords"), ""));
+        metrics.Children.Add(Metric("词库", JsonRead.Str(stats, "vocabularyCount"), "条"));
+        profileCard.Children.Add(metrics);
+        Body.Children.Add(Card(profileCard));
+
+        var editor = new StackPanel();
+        editor.Children.Add(Text("昵称", 16));
+        var box = new TextBox
+        {
+            Style = (Style)FindResource("FieldBox"),
+            Text = nickname,
+            Margin = new Thickness(0, 4, 0, 12),
+            MaxWidth = 360,
+            HorizontalAlignment = HorizontalAlignment.Left,
+        };
         var save = new Button { Content = "保存昵称", Style = (Style)FindResource("PrimaryButton"), HorizontalAlignment = HorizontalAlignment.Left };
         save.Click += async (_, _) =>
         {
             await AppServices.Api.PutAsync("/user/profile", new { nickname = box.Text.Trim() });
             AppServices.Session.Nickname = box.Text.Trim();
             AppServices.Session.Save();
-            AddText("昵称已更新。");
+            await ShowAsync("overview");
         };
-        Body.Children.Add(box);
-        Body.Children.Add(save);
-
-        var test = new Button { Content = "英语能力测评", Style = (Style)FindResource("GhostButton"), HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 16, 0, 8) };
+        editor.Children.Add(box);
+        editor.Children.Add(save);
+        var test = new Button
+        {
+            Content = "英语能力测评",
+            Style = (Style)FindResource("GhostButton"),
+            HorizontalAlignment = HorizontalAlignment.Left,
+            Margin = new Thickness(0, 12, 0, 0),
+        };
         test.Click += (_, _) =>
         {
             if (Application.Current.MainWindow is MainWindow shell)
@@ -86,15 +113,20 @@ public partial class UserCenterView : UserControl, IRefreshOnShow
                 shell.OpenProficiency();
             }
         };
-        Body.Children.Add(test);
+        editor.Children.Add(test);
+        Body.Children.Add(Card(editor));
 
         try
         {
             var announcements = await AppServices.Api.GetAsync("/announcements");
-            AddText("公告", 18);
+            var list = new StackPanel();
+            list.Children.Add(Text("公告", 18));
+            var any = false;
             foreach (var item in JsonRead.Items(announcements))
             {
-                AddText($"{JsonRead.Str(item, "title")}\n{JsonRead.PlainText(JsonRead.Str(item, "content"))}");
+                any = true;
+                list.Children.Add(Text(JsonRead.Str(item, "title"), 16));
+                list.Children.Add(Text(JsonRead.PlainText(JsonRead.Str(item, "content"))));
                 var id = JsonRead.Str(item, "id");
                 if (!JsonRead.Bool(item, "hasRead") && !string.IsNullOrWhiteSpace(id))
                 {
@@ -108,10 +140,17 @@ public partial class UserCenterView : UserControl, IRefreshOnShow
                     }
                 }
             }
+
+            if (!any)
+            {
+                list.Children.Add(Text("暂时没有公告。"));
+            }
+
+            Body.Children.Add(Card(list));
         }
         catch (Exception ex)
         {
-            AddText(ex.Message, danger: true);
+            Body.Children.Add(Text(ex.Message, danger: true));
         }
     }
 
@@ -217,19 +256,83 @@ public partial class UserCenterView : UserControl, IRefreshOnShow
     private async Task ShowUsageAsync()
     {
         var summary = await AppServices.Api.GetAsync("/usage/summary");
-        AddText("本月 Token", 22);
-        AddText(JsonRead.Pretty(summary));
+        var metrics = new UniformGrid { Columns = 2 };
+        metrics.Children.Add(Metric("本月消耗", JsonRead.Str(summary, "consumedThisMonth"), "Token"));
+        metrics.Children.Add(Metric("累计消耗", JsonRead.Str(summary, "totalConsumed"), "Token"));
+        metrics.Children.Add(Metric("调用次数", JsonRead.Str(summary, "totalCalls"), "次"));
+        metrics.Children.Add(Metric("月预算", JsonRead.Str(summary, "monthlyBudget"), "Token"));
+        var panel = new StackPanel();
+        panel.Children.Add(Text("用量", 18));
+        panel.Children.Add(metrics);
+        var status = JsonRead.Str(summary, "budgetStatus");
+        if (!string.IsNullOrWhiteSpace(status))
+        {
+            panel.Children.Add(Text($"预算状态：{StatusLabel(status)}"));
+        }
+
         try
         {
             var budget = await AppServices.Api.GetAsync("/usage/budget");
-            AddText("预算", 18);
-            AddText(JsonRead.Pretty(budget));
+            var limit = JsonRead.Str(budget, "budgetLimit");
+            var percent = JsonRead.Str(budget, "consumedPercent");
+            if (!string.IsNullOrWhiteSpace(limit))
+            {
+                panel.Children.Add(Text($"预算上限 {limit}，已用 {percent}%"));
+            }
         }
         catch (Exception ex)
         {
-            AddText(ex.Message, danger: true);
+            panel.Children.Add(Text(ex.Message, danger: true));
         }
+
+        Body.Children.Add(Card(panel));
     }
+
+    private Border Card(UIElement child) => new()
+    {
+        Style = (Style)FindResource("Card"),
+        Margin = new Thickness(0, 0, 0, 14),
+        HorizontalAlignment = HorizontalAlignment.Stretch,
+        Child = child,
+    };
+
+    private Border Metric(string label, string value, string unit)
+    {
+        var stack = new StackPanel { Margin = new Thickness(0, 8, 12, 8) };
+        stack.Children.Add(new TextBlock
+        {
+            Text = label,
+            Foreground = (Brush)FindResource("MutedBrush"),
+            FontSize = 12,
+        });
+        stack.Children.Add(new TextBlock
+        {
+            Text = string.IsNullOrWhiteSpace(value) ? "—" : value,
+            FontFamily = new FontFamily("Georgia"),
+            FontSize = 26,
+            Margin = new Thickness(0, 4, 0, 0),
+            Foreground = (Brush)FindResource("TextBrush"),
+        });
+        if (!string.IsNullOrWhiteSpace(unit))
+        {
+            stack.Children.Add(new TextBlock
+            {
+                Text = unit,
+                Foreground = (Brush)FindResource("MutedBrush"),
+                FontSize = 12,
+            });
+        }
+
+        return new Border { Child = stack };
+    }
+
+    private static string StatusLabel(string status) => status switch
+    {
+        "normal" => "正常",
+        "warning" => "接近上限",
+        "exceeded" => "已超出",
+        _ => status,
+    };
 
     private void AddText(string text, double size = 15, bool danger = false)
     {

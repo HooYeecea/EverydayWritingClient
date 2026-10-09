@@ -291,7 +291,7 @@ public partial class MainWindow : Window
 
     private void ApplyCollapsed()
     {
-        SidebarColumn.Width = new GridLength(_collapsed ? 76 : 248);
+        SidebarColumn.Width = new GridLength(_collapsed ? 72 : 232);
         BrandExpanded.Visibility = _collapsed ? Visibility.Collapsed : Visibility.Visible;
         BrandCollapsed.Visibility = _collapsed ? Visibility.Visible : Visibility.Collapsed;
         CollapseButton.Content = _collapsed ? "»" : "收起侧栏";

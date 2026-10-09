@@ -1,0 +1,29 @@
+<UserControl x:Class="EverydayWritingClient.Controls.EwMark"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Width="32"
+             Height="32"
+             IsHitTestVisible="False">
+    <Viewbox Stretch="Uniform">
+        <Canvas Width="40" Height="40">
+            <Rectangle Width="40" Height="40" RadiusX="10" RadiusY="10" Fill="{DynamicResource PrimaryBrush}" />
+            <Path Stroke="{DynamicResource PrimaryFgBrush}"
+                  StrokeThickness="2.25"
+                  StrokeStartLineCap="Round"
+                  StrokeEndLineCap="Round"
+                  StrokeLineJoin="Round"
+                  Data="M11,12 H23 M11,20 H20 M11,28 H23" />
+            <Path Stroke="{DynamicResource PrimaryFgBrush}"
+                  StrokeThickness="2.25"
+                  StrokeStartLineCap="Round"
+                  StrokeEndLineCap="Round"
+                  StrokeLineJoin="Round"
+                  Data="M26,11 V25.5 C26,26.7 26.7,27.5 28,27.5 H29" />
+            <Path Stroke="{DynamicResource PrimaryFgBrush}"
+                  StrokeThickness="2"
+                  StrokeStartLineCap="Round"
+                  StrokeEndLineCap="Round"
+                  Data="M27.5,28.5 L29.7,30.7" />
+        </Canvas>
+    </Viewbox>
+</UserControl>

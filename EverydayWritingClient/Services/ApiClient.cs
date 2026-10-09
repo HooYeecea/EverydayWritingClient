@@ -7,7 +7,7 @@ namespace EverydayWritingClient.Services;
 
 public sealed class ApiClient
 {
-    public const string Origin = "https://kefumiao.top";
+    public const string Origin = "http://localhost:5000";
 
     private readonly HttpClient _http = new() { Timeout = TimeSpan.FromMinutes(3) };
     private readonly SemaphoreSlim _refreshLock = new(1, 1);
@@ -205,7 +205,7 @@ public sealed class ApiClient
             || text.Contains("certificate", StringComparison.OrdinalIgnoreCase)
             || text.Contains("证书", StringComparison.Ordinal))
         {
-            return "服务器证书已过期，系统拒绝了这次 HTTPS 连接。需要先更新 kefumiao.top 的证书。";
+            return "服务器证书无效，系统拒绝了这次 HTTPS 连接。";
         }
 
         if (exception is TaskCanceledException)
