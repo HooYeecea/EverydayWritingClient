@@ -155,7 +155,7 @@ public partial class RecordsView : UserControl, IRefreshOnShow
 
     private async void DeleteClick(object sender, RoutedEventArgs e)
     {
-        if (string.IsNullOrWhiteSpace(_selectedId) || !Dialogs.Confirm("删除后不能恢复。"))
+        if (string.IsNullOrWhiteSpace(_selectedId) || !Dialogs.Confirm("删除后不能恢复。", "删除记录", "删除", danger: true))
         {
             return;
         }

@@ -299,15 +299,15 @@ public partial class MainWindow : Window
 
     private async void LogoutClick(object sender, RoutedEventArgs e)
     {
-        var all = MessageBox.Show(this, "退出全部设备请选“是”，只退出这台电脑请选“否”。", "退出登录", MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
-        if (all == MessageBoxResult.Cancel)
+        var choice = Dialogs.Choose("退出登录", "只退出这台电脑，或让其他设备上的登录一起失效。", "只退出这台", "退出全部设备");
+        if (choice == 0)
         {
             return;
         }
 
         try
         {
-            await AppServices.Api.PostAsync(all == MessageBoxResult.Yes ? "/auth/logout-all" : "/auth/logout");
+            await AppServices.Api.PostAsync(choice == 2 ? "/auth/logout-all" : "/auth/logout");
         }
         catch
         {

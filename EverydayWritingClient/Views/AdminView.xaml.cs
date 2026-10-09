@@ -313,7 +313,7 @@ public partial class AdminView : UserControl, IRefreshOnShow
     private async void DeleteClick(object sender, RoutedEventArgs e)
     {
         var module = Modules[_key];
-        if (module.ItemPath == null || _selected == null || !Dialogs.Confirm("确定删除这条记录吗？"))
+        if (module.ItemPath == null || _selected == null || !Dialogs.Confirm("删除后不能恢复。", "删除记录", "删除", danger: true))
         {
             return;
         }
@@ -368,13 +368,13 @@ public partial class AdminView : UserControl, IRefreshOnShow
             }
             else if (_key == "admin:topics")
             {
-                var choice = MessageBox.Show("选“是”从文件导入，选“否”让 AI 生成题目。", "写作题库", MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
-                if (choice == MessageBoxResult.Cancel)
+                var choice = Dialogs.Choose("写作题库", "从表格文件导入，或让 AI 生成新题目。", "从文件导入", "AI 生成");
+                if (choice == 0)
                 {
                     return;
                 }
 
-                if (choice == MessageBoxResult.Yes)
+                if (choice == 1)
                 {
                     var dialog = new OpenFileDialog { Filter = "表格|*.xlsx;*.csv|所有文件|*.*" };
                     if (dialog.ShowDialog() != true)

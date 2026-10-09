@@ -266,7 +266,7 @@ public partial class WritingView : UserControl, IRefreshOnShow
             return;
         }
 
-        if (AppServices.Session.ConfirmBeforeSubmit && !Dialogs.Confirm("确认把这篇作文正式提交吗？"))
+        if (AppServices.Session.ConfirmBeforeSubmit && !Dialogs.Confirm("提交后会计入写作记录。", "正式提交", "提交"))
         {
             return;
         }

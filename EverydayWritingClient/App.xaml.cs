@@ -12,7 +12,14 @@ public partial class App : Application
         ThemeService.Apply(AppServices.Session.Theme);
         DispatcherUnhandledException += (_, args) =>
         {
-            MessageBox.Show(args.Exception.Message, "Everyday Writing", MessageBoxButton.OK, MessageBoxImage.Error);
+            try
+            {
+                Dialogs.Alert(args.Exception.Message, "出了点问题");
+            }
+            catch
+            {
+                MessageBox.Show(args.Exception.Message, "Everyday Writing", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
             args.Handled = true;
         };
     }
