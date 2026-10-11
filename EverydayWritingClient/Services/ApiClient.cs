@@ -7,7 +7,16 @@ namespace EverydayWritingClient.Services;
 
 public sealed class ApiClient
 {
-    public const string Origin = "http://localhost:5000";
+    public const string DefaultOrigin = "http://localhost:5000";
+
+    public string Origin
+    {
+        get
+        {
+            var value = Session.ApiOrigin?.Trim().TrimEnd('/');
+            return string.IsNullOrWhiteSpace(value) ? DefaultOrigin : value;
+        }
+    }
 
     private readonly HttpClient _http = new() { Timeout = TimeSpan.FromMinutes(3) };
     private readonly SemaphoreSlim _refreshLock = new(1, 1);
@@ -39,10 +48,29 @@ public sealed class ApiClient
         var bytes = await File.ReadAllBytesAsync(filePath);
         var content = new MultipartFormDataContent();
         var file = new ByteArrayContent(bytes);
-        file.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+        file.Headers.ContentType = new MediaTypeHeaderValue(ContentTypeFor(filePath));
         content.Add(file, fieldName, IoPath.GetFileName(filePath));
         return await SendAsync(HttpMethod.Post, path, null, null, false, null, content);
     }
+
+    private static string ContentTypeFor(string filePath) => IoPath.GetExtension(filePath).ToLowerInvariant() switch
+    {
+        ".jpg" or ".jpeg" => "image/jpeg",
+        ".png" => "image/png",
+        ".webp" => "image/webp",
+        ".gif" => "image/gif",
+        ".csv" => "text/csv",
+        ".xlsx" => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        _ => "application/octet-stream",
+    };
+
+    public Task<string> PostStreamAsync(
+        string path,
+        object body,
+        IDictionary<string, string>? headers,
+        Action<string> onDelta,
+        CancellationToken cancellationToken = default) =>
+        ReadStreamAsync(path, body, headers, onDelta, cancellationToken, allowRefresh: true);
 
     public async Task<JsonElement> SendAsync(
         HttpMethod method,
@@ -216,7 +244,7 @@ public sealed class ApiClient
         return "无法连接服务器，请检查网络后重试。";
     }
 
-    private static string BuildUrl(string path, IDictionary<string, string?>? query)
+    private string BuildUrl(string path, IDictionary<string, string?>? query)
     {
         if (!path.StartsWith('/'))
         {
@@ -228,7 +256,7 @@ public sealed class ApiClient
             path = "/api/v1" + path;
         }
 
-        var builder = new StringBuilder(Origin).Append(path);
+        var builder = new StringBuilder(Origin.TrimEnd('/')).Append(path);
         if (query is { Count: > 0 })
         {
             var first = true;
@@ -248,5 +276,137 @@ public sealed class ApiClient
         }
 
         return builder.ToString();
+    }
+
+    private async Task<string> ReadStreamAsync(
+        string path,
+        object body,
+        IDictionary<string, string>? headers,
+        Action<string> onDelta,
+        CancellationToken cancellationToken,
+        bool allowRefresh)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, BuildUrl(path, null));
+        if (!string.IsNullOrWhiteSpace(Session.Token))
+        {
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", Session.Token);
+        }
+
+        if (headers != null)
+        {
+            foreach (var pair in headers)
+            {
+                request.Headers.TryAddWithoutValidation(pair.Key, pair.Value);
+            }
+        }
+
+        var json = JsonSerializer.Serialize(body, JsonRead.Options);
+        request.Content = new StringContent(json, Encoding.UTF8, "application/json");
+        HttpResponseMessage response;
+        try
+        {
+            response = await _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            throw new ApiException(0, DescribeTransportError(ex), 0, null);
+        }
+
+        if (allowRefresh
+            && response.StatusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden
+            && !string.IsNullOrWhiteSpace(Session.RefreshToken))
+        {
+            response.Dispose();
+            if (await RefreshAsync())
+            {
+                return await ReadStreamAsync(path, body, headers, onDelta, cancellationToken, false);
+            }
+
+            throw new ApiException(401, "登录状态已失效，请重新登录", 401, null);
+        }
+
+        using (response)
+        {
+            var media = response.Content.Headers.ContentType?.MediaType ?? "";
+            if (!media.Contains("event-stream", StringComparison.OrdinalIgnoreCase))
+            {
+                var text = await response.Content.ReadAsStringAsync(cancellationToken);
+                var data = ParseEnvelope(response, text);
+                var content = JsonRead.Str(data, "content");
+                if (content.Length > 0)
+                {
+                    onDelta(content);
+                }
+
+                return content;
+            }
+
+            var full = new StringBuilder();
+            using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+            using var reader = new StreamReader(stream);
+            while (true)
+            {
+                var line = await reader.ReadLineAsync(cancellationToken);
+                if (line == null)
+                {
+                    break;
+                }
+
+                var trimmed = line.Trim();
+                if (!trimmed.StartsWith("data:", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                var payload = trimmed[5..].Trim();
+                if (payload.Length == 0 || payload == "[DONE]")
+                {
+                    continue;
+                }
+
+                try
+                {
+                    using var doc = JsonDocument.Parse(payload);
+                    var root = doc.RootElement;
+                    var type = JsonRead.Str(root, "type");
+                    if (type == "delta")
+                    {
+                        var delta = JsonRead.Str(root, "text");
+                        if (delta.Length > 0)
+                        {
+                            full.Append(delta);
+                            onDelta(delta);
+                        }
+                    }
+                    else if (type == "done")
+                    {
+                        var done = JsonRead.Str(root, "content");
+                        if (done.Length > 0)
+                        {
+                            return done;
+                        }
+                    }
+                    else if (type == "error")
+                    {
+                        var message = JsonRead.Str(root, "message");
+                        throw new ApiException(502, string.IsNullOrWhiteSpace(message) ? "流式输出失败" : message, 502, null);
+                    }
+                }
+                catch (ApiException)
+                {
+                    throw;
+                }
+                catch (JsonException)
+                {
+                    // 忽略无法解析的一行，继续读后面的内容。
+                }
+            }
+
+            return full.ToString();
+        }
     }
 }

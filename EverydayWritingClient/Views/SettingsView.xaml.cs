@@ -31,6 +31,9 @@ public partial class SettingsView : UserControl, IRefreshOnShow
         Select(SaveBox, AppServices.Session.AutoSaveSeconds.ToString());
         Select(HomeBox, AppServices.Session.DefaultHome);
         ConfirmBox.IsChecked = AppServices.Session.ConfirmBeforeSubmit;
+        ServerBox.Text = string.IsNullOrWhiteSpace(AppServices.Session.ApiOrigin)
+            ? ApiClient.DefaultOrigin
+            : AppServices.Session.ApiOrigin;
         _loading = false;
     }
 
@@ -101,6 +104,13 @@ public partial class SettingsView : UserControl, IRefreshOnShow
 
     private async void SavePrefsClick(object sender, RoutedEventArgs e)
     {
+        if (!TryOrigin(ServerBox.Text, out var origin))
+        {
+            StatusText.Text = "服务器地址需要是 http 或 https，例如 http://localhost:5000。";
+            return;
+        }
+
+        AppServices.Session.ApiOrigin = origin == ApiClient.DefaultOrigin ? "" : origin;
         var theme = (ThemeBox.SelectedItem as Choice)?.Value ?? "light";
         var font = (FontBox.SelectedItem as Choice)?.Value ?? "md";
         var seconds = int.TryParse((SaveBox.SelectedItem as Choice)?.Value, out var parsed) ? parsed : 5;
@@ -192,6 +202,30 @@ public partial class SettingsView : UserControl, IRefreshOnShow
         {
             shell.Navigate("password");
         }
+    }
+
+    private static bool TryOrigin(string text, out string origin)
+    {
+        origin = "";
+        text = text.Trim();
+        if (!Uri.TryCreate(text, UriKind.Absolute, out var uri))
+        {
+            return false;
+        }
+
+        if (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)
+        {
+            return false;
+        }
+
+        var path = uri.AbsolutePath.TrimEnd('/');
+        if (path.Length > 0 && !path.Equals("/api/v1", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        origin = uri.GetLeftPart(UriPartial.Authority).TrimEnd('/');
+        return true;
     }
 
     private static void Select(ComboBox box, string value)

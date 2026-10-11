@@ -43,17 +43,36 @@
         </ScrollViewer>
 
         <Grid x:Name="ListHost" Grid.Row="2">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="1.7*" MinWidth="220" />
-                <ColumnDefinition Width="*" MinWidth="220" />
-            </Grid.ColumnDefinitions>
-            <DataGrid x:Name="Table" Margin="0,0,16,0" SelectionChanged="TableChanged" />
-            <DockPanel Grid.Column="1">
-                <TextBlock DockPanel.Dock="Top" Text="记录详情" Style="{StaticResource SectionLabel}" />
-                <TextBox x:Name="JsonBox" Style="{StaticResource FieldBox}" AcceptsReturn="True" TextWrapping="Wrap"
-                         VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
-                         FontFamily="Consolas" FontSize="12" VerticalAlignment="Stretch" />
-            </DockPanel>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <Border x:Name="GeoHost" Style="{StaticResource Card}" Margin="0,0,0,12" Visibility="Collapsed" Padding="14">
+                <StackPanel>
+                    <TextBlock Text="近 7 天访问地区" FontSize="14" FontWeight="Medium" Foreground="{DynamicResource TextBrush}" />
+                    <TextBlock x:Name="GeoText" Margin="0,8,0,0" TextWrapping="Wrap" Foreground="{DynamicResource MutedBrush}" />
+                </StackPanel>
+            </Border>
+            <Grid Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="1.7*" MinWidth="220" />
+                    <ColumnDefinition Width="*" MinWidth="240" />
+                </Grid.ColumnDefinitions>
+                <DataGrid x:Name="Table" Margin="0,0,16,0" SelectionChanged="TableChanged" />
+                <DockPanel Grid.Column="1">
+                    <StackPanel DockPanel.Dock="Top">
+                        <TextBlock Text="记录详情" Style="{StaticResource SectionLabel}" />
+                        <CheckBox x:Name="JsonToggle" Content="直接编辑 JSON" Margin="0,0,0,8" Checked="JsonToggleChanged" Unchecked="JsonToggleChanged" />
+                        <TextBlock x:Name="FormHint" TextWrapping="Wrap" Margin="0,0,0,8" Foreground="{DynamicResource MutedBrush}" Visibility="Collapsed" />
+                    </StackPanel>
+                    <TextBox x:Name="JsonBox" Style="{StaticResource FieldBox}" AcceptsReturn="True" TextWrapping="Wrap"
+                             VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                             FontFamily="Consolas" FontSize="12" VerticalAlignment="Stretch" Visibility="Collapsed" />
+                    <ScrollViewer x:Name="FormScroller" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel x:Name="FormPanel" />
+                    </ScrollViewer>
+                </DockPanel>
+            </Grid>
         </Grid>
 
         <Grid x:Name="PagerBar" Grid.Row="3" Margin="0,12,0,0">

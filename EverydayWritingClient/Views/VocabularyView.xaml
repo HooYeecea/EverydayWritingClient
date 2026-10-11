@@ -15,12 +15,17 @@
                     <TextBox x:Name="SearchBox" Style="{StaticResource FieldBox}" />
                 </DockPanel>
             </StackPanel>
-            <ListBox x:Name="List" BorderBrush="{DynamicResource BorderBrush}" Background="{DynamicResource SurfaceBrush}" />
+            <DockPanel DockPanel.Dock="Bottom" Margin="0,10,0,0">
+                <Button DockPanel.Dock="Left" Content="上一页" Style="{StaticResource GhostButton}" Click="PrevClick" />
+                <Button DockPanel.Dock="Right" Content="下一页" Style="{StaticResource GhostButton}" Click="NextClick" />
+                <TextBlock x:Name="PageText" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource MutedBrush}" />
+            </DockPanel>
+            <ListBox x:Name="List" BorderBrush="{DynamicResource BorderBrush}" Background="{DynamicResource SurfaceBrush}" SelectionChanged="ListChanged" />
         </DockPanel>
         <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
             <Border Style="{StaticResource Card}">
                 <StackPanel>
-                    <TextBlock Text="新增词条" FontFamily="Georgia" FontSize="20" Foreground="{DynamicResource TextBrush}" />
+                    <TextBlock x:Name="FormTitle" Text="新增词条" FontFamily="Georgia" FontSize="20" Foreground="{DynamicResource TextBrush}" />
                     <TextBlock Text="单词" Style="{StaticResource SectionLabel}" Margin="0,12,0,6" />
                     <TextBox x:Name="WordBox" Style="{StaticResource FieldBox}" />
                     <TextBlock Text="词性" Style="{StaticResource SectionLabel}" Margin="0,10,0,6" />
@@ -31,9 +36,10 @@
                     <TextBox x:Name="SentenceBox" Style="{StaticResource FieldBox}" />
                     <TextBlock Text="类型" Style="{StaticResource SectionLabel}" Margin="0,10,0,6" />
                     <ComboBox x:Name="TypeBox" Style="{StaticResource FieldCombo}" />
-                    <Button Content="加入词库" Style="{StaticResource PrimaryButton}" Margin="0,14,0,8" HorizontalAlignment="Stretch" Click="AddClick" />
+                    <Button x:Name="SaveButton" Content="加入词库" Style="{StaticResource PrimaryButton}" Margin="0,14,0,8" HorizontalAlignment="Stretch" Click="SaveClick" />
+                    <Button Content="清空，改为新增" Style="{StaticResource GhostButton}" Margin="0,0,0,8" HorizontalAlignment="Stretch" Click="ClearClick" />
                     <Button Content="删除所选" Style="{StaticResource GhostButton}" HorizontalAlignment="Stretch" Click="DeleteClick" />
-                    <TextBlock x:Name="StatusText" TextWrapping="Wrap" Margin="0,10,0,0" Foreground="{DynamicResource DangerBrush}" />
+                    <TextBlock x:Name="StatusText" TextWrapping="Wrap" Margin="0,10,0,0" Foreground="{DynamicResource MutedBrush}" />
                 </StackPanel>
             </Border>
         </ScrollViewer>

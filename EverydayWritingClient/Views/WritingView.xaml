@@ -20,7 +20,10 @@
                 <Border Background="{DynamicResource SubtleBrush}" CornerRadius="10" Padding="14" Margin="0,0,0,10">
                     <TextBlock x:Name="TopicText" TextWrapping="Wrap" FontFamily="Georgia" FontSize="15" Foreground="{DynamicResource TextBrush}" Text="点「换一题」获取题目，或直接写自拟题。" />
                 </Border>
-                <TextBox x:Name="TitleBox" Style="{StaticResource FieldBox}" Margin="0,0,0,10" ToolTip="标题" />
+                <Grid Margin="0,0,0,10">
+                    <TextBox x:Name="TitleBox" Style="{StaticResource FieldBox}" TextChanged="TitleChanged" />
+                    <TextBlock x:Name="TitleHint" Text="给这篇作文起个标题" IsHitTestVisible="False" Margin="14,0,12,0" VerticalAlignment="Center" Foreground="{DynamicResource MutedBrush}" />
+                </Grid>
             </StackPanel>
             <Border Style="{StaticResource Card}" Padding="0">
                 <controls:RichEditor x:Name="Editor" />

@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
@@ -20,7 +21,8 @@ public partial class WritingView : UserControl, IRefreshOnShow
     private bool _loaded;
     private bool _countUp = true;
     private int _remaining;
-    private bool _realtimeBusy;
+    private int _realtimeGeneration;
+    private CancellationTokenSource? _realtimeCancel;
 
     public WritingView()
     {
@@ -52,6 +54,7 @@ public partial class WritingView : UserControl, IRefreshOnShow
             _autosave.Stop();
             _clock.Stop();
             _realtime.Stop();
+            _realtimeCancel?.Cancel();
         };
     }
 
@@ -343,29 +346,60 @@ public partial class WritingView : UserControl, IRefreshOnShow
 
     private async Task RunAiAsync(string purpose, bool persist)
     {
-        if (_realtimeBusy || !AppServices.Session.IsAuthenticated)
+        if (!AppServices.Session.IsAuthenticated)
         {
             return;
         }
 
-        _realtimeBusy = true;
+        var generation = ++_realtimeGeneration;
+        _realtimeCancel?.Cancel();
+        _realtimeCancel = new CancellationTokenSource();
+        var token = _realtimeCancel.Token;
         try
         {
-            var text = await CallAiAsync(purpose, Editor.Html, null);
+            string text;
+            if (purpose == "realtime_assist")
+            {
+                AiText.Text = "正在写建议…";
+                var shown = new StringBuilder();
+                text = await CallAiStreamAsync(purpose, Editor.Html, null, chunk =>
+                {
+                    shown.Append(chunk);
+                    AiText.Text = shown.ToString();
+                }, token);
+            }
+            else
+            {
+                text = await CallAiAsync(purpose, Editor.Html, null);
+            }
+
+            if (token.IsCancellationRequested || generation != _realtimeGeneration)
+            {
+                return;
+            }
+
             AiText.Text = string.IsNullOrWhiteSpace(text) ? "这次没有返回建议。" : PrettyAi(text);
             if (persist)
             {
                 StatusText.Text = "AI 建议已更新。";
             }
         }
+        catch (OperationCanceledException)
+        {
+            // 继续打字时取消上一轮建议。
+        }
         catch (Exception ex)
         {
-            AiText.Text = ex.Message;
+            if (!token.IsCancellationRequested && generation == _realtimeGeneration)
+            {
+                AiText.Text = ex.Message;
+            }
         }
-        finally
-        {
-            _realtimeBusy = false;
-        }
+    }
+
+    private void TitleChanged(object sender, TextChangedEventArgs e)
+    {
+        TitleHint.Visibility = string.IsNullOrEmpty(TitleBox.Text) ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private async Task<string> CallAiAsync(string purpose, string content, string? sessionId)
@@ -374,15 +408,26 @@ public partial class WritingView : UserControl, IRefreshOnShow
         var headers = hasKey
             ? new Dictionary<string, string> { ["X-Encrypted-Key"] = AppServices.Session.EncryptedAiKey }
             : null;
-        var data = await AppServices.Api.PostAsync($"/ai/proxy/{purpose}", new
-        {
-            providerId = hasKey && !string.IsNullOrWhiteSpace(AppServices.Session.AiProviderId) ? AppServices.Session.AiProviderId : "free",
-            modelId = hasKey && !string.IsNullOrWhiteSpace(AppServices.Session.AiModelId) ? AppServices.Session.AiModelId : "free",
-            userContent = content,
-            gradingSessionId = sessionId,
-        }, headers: headers);
+        var data = await AppServices.Api.PostAsync($"/ai/proxy/{purpose}", AiPayload(content, sessionId, hasKey), headers: headers);
         return JsonRead.Str(data, "content");
     }
+
+    private Task<string> CallAiStreamAsync(string purpose, string content, string? sessionId, Action<string> onDelta, CancellationToken cancellationToken)
+    {
+        var hasKey = !string.IsNullOrWhiteSpace(AppServices.Session.EncryptedAiKey);
+        var headers = hasKey
+            ? new Dictionary<string, string> { ["X-Encrypted-Key"] = AppServices.Session.EncryptedAiKey }
+            : null;
+        return AppServices.Api.PostStreamAsync($"/ai/proxy/{purpose}/stream", AiPayload(content, sessionId, hasKey), headers, onDelta, cancellationToken);
+    }
+
+    private static object AiPayload(string content, string? sessionId, bool hasKey) => new
+    {
+        providerId = hasKey && !string.IsNullOrWhiteSpace(AppServices.Session.AiProviderId) ? AppServices.Session.AiProviderId : "free",
+        modelId = hasKey && !string.IsNullOrWhiteSpace(AppServices.Session.AiModelId) ? AppServices.Session.AiModelId : "free",
+        userContent = content,
+        gradingSessionId = sessionId,
+    };
 
     private async Task PersistAiAsync(string submitId, Dictionary<string, string> stages)
     {

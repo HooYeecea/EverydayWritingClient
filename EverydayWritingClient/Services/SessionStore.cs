@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 
 namespace EverydayWritingClient.Services;
@@ -28,6 +30,7 @@ public sealed class SessionStore
     public bool AiSuggestion { get; set; } = true;
     public bool AiRealtime { get; set; }
     public bool ShowGuideRedDot { get; set; }
+    public string ApiOrigin { get; set; } = "";
 
     public SessionStore()
     {
@@ -72,7 +75,13 @@ public sealed class SessionStore
 
         try
         {
-            using var doc = JsonDocument.Parse(File.ReadAllText(_path));
+            var json = ReadFile();
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                return;
+            }
+
+            using var doc = JsonDocument.Parse(json);
             var root = doc.RootElement;
             Token = JsonRead.Str(root, "token");
             RefreshToken = JsonRead.Str(root, "refreshToken");
@@ -95,6 +104,11 @@ public sealed class SessionStore
             AiStructure = !root.TryGetProperty("aiStructure", out _) || JsonRead.Bool(root, "aiStructure");
             AiSuggestion = !root.TryGetProperty("aiSuggestion", out _) || JsonRead.Bool(root, "aiSuggestion");
             AiRealtime = JsonRead.Bool(root, "aiRealtime");
+            ApiOrigin = JsonRead.Str(root, "apiOrigin");
+            if (WasPlainText)
+            {
+                Save();
+            }
         }
         catch
         {
@@ -195,7 +209,34 @@ public sealed class SessionStore
             aiStructure = AiStructure,
             aiSuggestion = AiSuggestion,
             aiRealtime = AiRealtime,
+            apiOrigin = ApiOrigin,
         };
-        File.WriteAllText(_path, JsonSerializer.Serialize(payload, new JsonSerializerOptions { WriteIndented = true }));
+        var json = JsonSerializer.Serialize(payload, new JsonSerializerOptions { WriteIndented = true });
+        var protectedBytes = ProtectedData.Protect(Encoding.UTF8.GetBytes(json), Entropy, DataProtectionScope.CurrentUser);
+        File.WriteAllBytes(_path, protectedBytes);
+    }
+
+    private bool WasPlainText { get; set; }
+
+    private static readonly byte[] Entropy = "EverydayWriting.Session.v1"u8.ToArray();
+
+    private string ReadFile()
+    {
+        var bytes = File.ReadAllBytes(_path);
+        if (bytes.Length == 0)
+        {
+            return "";
+        }
+
+        var start = bytes.Length > 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF ? 3 : 0;
+        if (bytes[start] == (byte)'{')
+        {
+            WasPlainText = true;
+            return Encoding.UTF8.GetString(bytes);
+        }
+
+        WasPlainText = false;
+        var plain = ProtectedData.Unprotect(bytes, Entropy, DataProtectionScope.CurrentUser);
+        return Encoding.UTF8.GetString(plain);
     }
 }

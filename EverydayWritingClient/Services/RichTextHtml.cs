@@ -126,11 +126,39 @@ public static class RichTextHtml
             case "br":
                 blocks.Add(new Paragraph());
                 break;
-            default:
-                foreach (var child in node.ChildNodes)
+            case "pre":
+                var codeBlock = new Paragraph
                 {
-                    AppendBlock(blocks, child);
+                    Tag = "pre",
+                    FontFamily = new FontFamily("Consolas"),
+                    FontSize = 15,
+                    Margin = new Thickness(0, 0, 0, 8),
+                };
+                AppendInlines(codeBlock.Inlines, node);
+                blocks.Add(codeBlock);
+                break;
+            case "hr":
+                blocks.Add(new Paragraph
+                {
+                    Tag = "hr",
+                    Margin = new Thickness(0, 8, 0, 8),
+                    BorderBrush = new SolidColorBrush(Color.FromRgb(229, 229, 229)),
+                    BorderThickness = new Thickness(0, 0, 0, 1),
+                });
+                break;
+            default:
+                if (node.NodeType != HtmlNodeType.Element)
+                {
+                    break;
                 }
+
+                if (node.Name is "span" or "a" or "strong" or "em" or "b" or "i" or "u" or "s" or "code")
+                {
+                    blocks.Add(MakeParagraph(node, null, 16, FontWeights.Normal));
+                    break;
+                }
+
+                blocks.Add(Preserve(node));
                 break;
         }
     }
@@ -186,7 +214,26 @@ public static class RichTextHtml
                 case "code":
                     var code = Wrap(child);
                     code.FontFamily = new FontFamily("Consolas");
+                    code.Tag = "code";
                     inlines.Add(code);
+                    break;
+                case "s":
+                case "strike":
+                case "del":
+                    var strike = Wrap(child);
+                    strike.TextDecorations = TextDecorations.Strikethrough;
+                    inlines.Add(strike);
+                    break;
+                case "a":
+                    var href = child.GetAttributeValue("href", "");
+                    var link = new Hyperlink { Tag = href };
+                    if (Uri.TryCreate(href, UriKind.RelativeOrAbsolute, out var uri))
+                    {
+                        link.NavigateUri = uri;
+                    }
+
+                    AppendInlines(link.Inlines, child);
+                    inlines.Add(link);
                     break;
                 case "p":
                 case "span":
@@ -234,7 +281,27 @@ public static class RichTextHtml
         switch (block)
         {
             case Paragraph paragraph:
+                if (paragraph.Tag is RawHtml raw && Compact(BlockText(paragraph)) == Compact(raw.Plain))
+                {
+                    builder.Append(raw.Html);
+                    return;
+                }
+
                 var tag = paragraph.Tag as string;
+                if (tag == "hr")
+                {
+                    builder.Append("<hr />");
+                    return;
+                }
+
+                if (tag == "pre")
+                {
+                    builder.Append("<pre>");
+                    WriteInlines(builder, paragraph.Inlines);
+                    builder.Append("</pre>");
+                    return;
+                }
+
                 var name = tag is "h1" or "h2" or "h3" ? tag : "p";
                 if (tag == "quote")
                 {
@@ -277,6 +344,12 @@ public static class RichTextHtml
         {
             switch (inline)
             {
+                case Hyperlink link:
+                    var href = link.Tag as string ?? link.NavigateUri?.ToString() ?? "";
+                    builder.Append("<a href=\"").Append(WebUtility.HtmlEncode(href)).Append("\">");
+                    WriteInlines(builder, link.Inlines);
+                    builder.Append("</a>");
+                    break;
                 case Run run:
                     WriteRun(builder, run.Text, run.FontWeight, run.FontStyle, run.TextDecorations);
                     break;
@@ -295,10 +368,22 @@ public static class RichTextHtml
                         close.Insert(0, "</em>");
                     }
 
-                    if (span.TextDecorations == TextDecorations.Underline)
+                    if (span.TextDecorations != null && span.TextDecorations.Contains(TextDecorations.Underline[0]))
                     {
                         open.Append("<u>");
                         close.Insert(0, "</u>");
+                    }
+
+                    if (span.TextDecorations != null && span.TextDecorations.Contains(TextDecorations.Strikethrough[0]))
+                    {
+                        open.Append("<s>");
+                        close.Insert(0, "</s>");
+                    }
+
+                    if (span.Tag as string == "code")
+                    {
+                        open.Append("<code>");
+                        close.Insert(0, "</code>");
                     }
 
                     builder.Append(open);
@@ -335,6 +420,39 @@ public static class RichTextHtml
             encoded = $"<u>{encoded}</u>";
         }
 
+        if (decorations != null && decorations.Contains(TextDecorations.Strikethrough[0]))
+        {
+            encoded = $"<s>{encoded}</s>";
+        }
+
         builder.Append(encoded);
+    }
+
+    private static Paragraph Preserve(HtmlNode node)
+    {
+        var plain = WebUtility.HtmlDecode(node.InnerText);
+        var paragraph = new Paragraph
+        {
+            Tag = new RawHtml(node.OuterHtml, plain),
+            Margin = new Thickness(0, 0, 0, 8),
+        };
+        paragraph.Inlines.Add(new Run(string.IsNullOrWhiteSpace(plain) ? "（这里有一段网页端的复杂内容）" : plain.Trim()));
+        return paragraph;
+    }
+
+    private static string BlockText(Paragraph paragraph)
+    {
+        return new TextRange(paragraph.ContentStart, paragraph.ContentEnd).Text ?? "";
+    }
+
+    private static string Compact(string text)
+    {
+        return string.Join(" ", text.Replace('\r', ' ').Replace('\n', ' ').Split(' ', StringSplitOptions.RemoveEmptyEntries));
+    }
+
+    private sealed class RawHtml(string html, string plain)
+    {
+        public string Html { get; } = html;
+        public string Plain { get; } = plain;
     }
 }

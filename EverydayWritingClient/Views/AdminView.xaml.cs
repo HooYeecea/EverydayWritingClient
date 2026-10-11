@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -74,7 +75,12 @@ public partial class AdminView : UserControl, IRefreshOnShow
     private int _page = 1;
     private int _totalPages = 1;
     private int _version;
+    private bool _creating;
+    private bool _suppressSelection;
+    private bool _syncingJson;
     private JsonElement? _selected;
+    private JsonElement? _editing;
+    private readonly List<FieldEditor> _fields = [];
 
     public string CurrentKey => _key;
 
@@ -122,7 +128,12 @@ public partial class AdminView : UserControl, IRefreshOnShow
         SearchBox.Visibility = key is "admin:users" or "admin:topics" or "admin:questions" ? Visibility.Visible : Visibility.Collapsed;
         PeriodBar.Visibility = key == "admin:dashboard" ? Visibility.Visible : Visibility.Collapsed;
         MarkPeriod();
-        JsonBox.Text = summary ? "" : module.Template ?? "";
+        _creating = false;
+        SaveButton.Content = "保存修改";
+        _syncingJson = true;
+        JsonToggle.IsChecked = false;
+        _syncingJson = false;
+        LoadEditor(summary ? "" : module.Template ?? "");
         _ = LoadAsync(++_version);
     }
 
@@ -206,8 +217,17 @@ public partial class AdminView : UserControl, IRefreshOnShow
             {
                 Table.ItemsSource = null;
                 Table.Columns.Clear();
-                JsonBox.Text = "";
+                LoadEditor("");
                 StatusText.Text = "没有数据。";
+                if (_key == "admin:access")
+                {
+                    await LoadGeoAsync(version);
+                }
+                else
+                {
+                    GeoHost.Visibility = Visibility.Collapsed;
+                }
+
                 return;
             }
 
@@ -236,10 +256,19 @@ public partial class AdminView : UserControl, IRefreshOnShow
             }
 
             Table.ItemsSource = rows;
-            StatusText.Text = $"共 {rows.Count} 条。选中一行后，在右侧修改 JSON 再保存。";
+            StatusText.Text = "共 " + rows.Count + " 条。选中一行后，在右侧表单里修改再保存。";
             if (rows.Count > 0)
             {
                 Table.SelectedIndex = 0;
+            }
+
+            if (_key == "admin:access")
+            {
+                await LoadGeoAsync(version);
+            }
+            else
+            {
+                GeoHost.Visibility = Visibility.Collapsed;
             }
         }
         catch (Exception ex)
@@ -253,25 +282,72 @@ public partial class AdminView : UserControl, IRefreshOnShow
 
     private void TableChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (Table.SelectedItem is Row row)
+        if (_suppressSelection)
         {
-            _selected = row.Element;
-            JsonBox.Text = JsonRead.Pretty(row.Element);
+            return;
         }
+
+        if (Table.SelectedItem is not Row row)
+        {
+            return;
+        }
+
+        _creating = false;
+        SaveButton.Content = "保存修改";
+        _selected = row.Element;
+        LoadEditor(JsonRead.Pretty(row.Element));
     }
 
-    private async void CreateClick(object sender, RoutedEventArgs e)
+    private void JsonToggleChanged(object sender, RoutedEventArgs e)
+    {
+        if (_syncingJson || JsonToggle == null || JsonBox == null || FormScroller == null)
+        {
+            return;
+        }
+
+        if (JsonToggle.IsChecked == true)
+        {
+            JsonBox.Text = CurrentJson();
+            JsonBox.Visibility = Visibility.Visible;
+            FormScroller.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        LoadEditor(JsonBox.Text);
+    }
+
+    private void CreateClick(object sender, RoutedEventArgs e)
     {
         var module = Modules[_key];
-        var json = Dialogs.Prompt("按 JSON 新建。字段名保持和接口一致。", "新建", module.Template ?? "{}");
-        if (json == null || module.CreatePath == null)
+        if (module.CreatePath == null)
+        {
+            return;
+        }
+
+        _suppressSelection = true;
+        Table.SelectedItem = null;
+        _suppressSelection = false;
+        _creating = true;
+        _selected = null;
+        SaveButton.Content = "创建";
+        LoadEditor(module.Template ?? "{}");
+        StatusText.Text = "在右侧填写后点创建。复杂字段可以勾选 JSON。";
+    }
+
+    private async Task CreateFromEditorAsync()
+    {
+        var module = Modules[_key];
+        if (module.CreatePath == null)
         {
             return;
         }
 
         try
         {
-            await AppServices.Api.PostAsync(module.CreatePath, json);
+            using var doc = JsonDocument.Parse(CurrentJson());
+            await AppServices.Api.PostAsync(module.CreatePath, doc.RootElement.Clone());
+            _creating = false;
+            SaveButton.Content = "保存修改";
             StatusText.Text = "已新建。";
             await LoadAsync(++_version);
         }
@@ -283,6 +359,12 @@ public partial class AdminView : UserControl, IRefreshOnShow
 
     private async void SaveClick(object sender, RoutedEventArgs e)
     {
+        if (_creating)
+        {
+            await CreateFromEditorAsync();
+            return;
+        }
+
         var module = Modules[_key];
         if (module.ItemPath == null || _selected == null)
         {
@@ -299,7 +381,7 @@ public partial class AdminView : UserControl, IRefreshOnShow
 
         try
         {
-            using var doc = JsonDocument.Parse(JsonBox.Text);
+            using var doc = JsonDocument.Parse(CurrentJson());
             await AppServices.Api.PutAsync(module.ItemPath.Replace("{id}", Uri.EscapeDataString(id)), doc.RootElement.Clone());
             StatusText.Text = "已保存。";
             await LoadAsync(++_version);
@@ -904,6 +986,174 @@ public partial class AdminView : UserControl, IRefreshOnShow
         return column.EndsWith("At", StringComparison.Ordinal) ? FormatTime(text) : text;
     }
 
+    private void LoadEditor(string json)
+    {
+        _syncingJson = true;
+        JsonBox.Text = json;
+        _fields.Clear();
+        FormPanel.Children.Clear();
+        FormHint.Visibility = Visibility.Collapsed;
+        try
+        {
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                _editing = null;
+                JsonToggle.IsChecked = false;
+                ShowJson(false);
+                return;
+            }
+
+            using var doc = JsonDocument.Parse(json);
+            _editing = doc.RootElement.Clone();
+            var scalars = _editing.Value.ValueKind == JsonValueKind.Object
+                ? _editing.Value.EnumerateObject().Where(p => p.Value.ValueKind is JsonValueKind.String or JsonValueKind.Number or JsonValueKind.True or JsonValueKind.False or JsonValueKind.Null).ToList()
+                : [];
+            var nested = _editing.Value.ValueKind == JsonValueKind.Object && _editing.Value.EnumerateObject().Any(p => p.Value.ValueKind is JsonValueKind.Object or JsonValueKind.Array);
+            if (scalars.Count == 0)
+            {
+                JsonToggle.IsChecked = true;
+                ShowJson(true);
+                return;
+            }
+
+            if (JsonToggle.IsChecked != true)
+            {
+                ShowJson(false);
+            }
+
+            foreach (var property in scalars)
+            {
+                var label = new TextBlock
+                {
+                    Text = Headers.TryGetValue(property.Name, out var header) ? header : property.Name,
+                    Style = (Style)FindResource("SectionLabel"),
+                    Margin = new Thickness(0, 0, 0, 6),
+                };
+                FormPanel.Children.Add(label);
+                if (property.Value.ValueKind is JsonValueKind.True or JsonValueKind.False)
+                {
+                    var check = new CheckBox
+                    {
+                        Content = JsonRead.Bool(_editing.Value, property.Name) ? "是" : "否",
+                        IsChecked = property.Value.ValueKind == JsonValueKind.True,
+                        Margin = new Thickness(0, 0, 0, 12),
+                    };
+                    check.Checked += (_, _) => check.Content = "是";
+                    check.Unchecked += (_, _) => check.Content = "否";
+                    FormPanel.Children.Add(check);
+                    _fields.Add(new FieldEditor(property.Name, property.Value.ValueKind, null, check, false));
+                }
+                else
+                {
+                    var box = new TextBox
+                    {
+                        Style = (Style)FindResource("FieldBox"),
+                        Text = property.Value.ValueKind == JsonValueKind.Null ? "" : JsonRead.Str(_editing.Value, property.Name),
+                        Margin = new Thickness(0, 0, 0, 12),
+                        TextWrapping = TextWrapping.Wrap,
+                        AcceptsReturn = property.Name is "content" or "description",
+                        MinHeight = property.Name is "content" or "description" ? 96 : 0,
+                    };
+                    FormPanel.Children.Add(box);
+                    _fields.Add(new FieldEditor(property.Name, property.Value.ValueKind, box, null, property.Value.ValueKind == JsonValueKind.Null));
+                }
+            }
+
+            if (nested)
+            {
+                FormHint.Text = "权限、题目内容这类嵌套字段会原样保留。要改它们，勾选直接编辑 JSON。";
+                FormHint.Visibility = Visibility.Visible;
+            }
+        }
+        catch
+        {
+            _editing = null;
+            JsonToggle.IsChecked = true;
+            ShowJson(true);
+        }
+        finally
+        {
+            _syncingJson = false;
+        }
+    }
+
+    private void ShowJson(bool raw)
+    {
+        JsonBox.Visibility = raw ? Visibility.Visible : Visibility.Collapsed;
+        FormScroller.Visibility = raw ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    private string CurrentJson()
+    {
+        if (JsonToggle.IsChecked == true || _editing == null || _fields.Count == 0)
+        {
+            return JsonBox.Text;
+        }
+
+        var node = JsonNode.Parse(_editing.Value.GetRawText()) as JsonObject ?? new JsonObject();
+        foreach (var field in _fields)
+        {
+            if (field.Check != null)
+            {
+                node[field.Name] = field.Check.IsChecked == true;
+                continue;
+            }
+
+            var text = field.Box?.Text ?? "";
+            if (field.Kind == JsonValueKind.Number && double.TryParse(text, NumberStyles.Any, CultureInfo.InvariantCulture, out var number))
+            {
+                node[field.Name] = text.Contains('.') ? number : long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var whole) ? whole : number;
+            }
+            else if (string.IsNullOrEmpty(text) && field.OriginalNull)
+            {
+                node[field.Name] = null;
+            }
+            else
+            {
+                node[field.Name] = text;
+            }
+        }
+
+        return node.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
+    }
+
+    private async Task LoadGeoAsync(int version)
+    {
+        GeoHost.Visibility = Visibility.Visible;
+        GeoText.Text = "正在统计地区…";
+        try
+        {
+            var data = await AppServices.Api.GetAsync("/admin/access-logs/stats/geo", new Dictionary<string, string?>
+            {
+                ["range"] = "7d",
+                ["level"] = "city",
+            });
+            if (version != _version)
+            {
+                return;
+            }
+
+            var lines = JsonRead.Items(data).Select(item =>
+            {
+                var city = JsonRead.Str(item, "city");
+                var country = JsonRead.Str(item, "country");
+                var name = JsonRead.Str(item, "name");
+                var label = !string.IsNullOrWhiteSpace(city)
+                    ? $"{city} · {country}"
+                    : string.IsNullOrWhiteSpace(name) ? country : name;
+                return $"{label} {JsonRead.Str(item, "count")}";
+            }).Where(line => !string.IsNullOrWhiteSpace(line)).ToList();
+            GeoText.Text = lines.Count == 0 ? "这段时间没有可统计的访问地区。" : string.Join("    ", lines);
+        }
+        catch (Exception ex)
+        {
+            if (version == _version)
+            {
+                GeoText.Text = ex.Message;
+            }
+        }
+    }
+
     private static string IdOf(JsonElement element)
     {
         var id = JsonRead.Str(element, "id");
@@ -917,4 +1167,6 @@ public partial class AdminView : UserControl, IRefreshOnShow
         public JsonElement Element { get; } = element;
         public Dictionary<string, string> Cells { get; } = cells;
     }
+
+    private sealed record FieldEditor(string Name, JsonValueKind Kind, TextBox? Box, CheckBox? Check, bool OriginalNull);
 }

@@ -3,7 +3,9 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using EverydayWritingClient.Services;
+using Microsoft.Win32;
 
 namespace EverydayWritingClient.Views;
 
@@ -66,6 +68,29 @@ public partial class UserCenterView : UserControl, IRefreshOnShow
         var email = JsonRead.Str(profile, "email");
         var stats = JsonRead.Prop(profile, "stats");
         var profileCard = new StackPanel();
+        var avatarUrl = JsonRead.Str(profile, "avatar");
+        if (!string.IsNullOrWhiteSpace(avatarUrl))
+        {
+            var image = new Image
+            {
+                Width = 72,
+                Height = 72,
+                Stretch = Stretch.UniformToFill,
+                Margin = new Thickness(0, 0, 0, 12),
+                HorizontalAlignment = HorizontalAlignment.Left,
+                Clip = new EllipseGeometry(new Point(36, 36), 36, 36),
+            };
+            try
+            {
+                image.Source = new BitmapImage(new Uri(AbsoluteUrl(avatarUrl), UriKind.Absolute));
+                profileCard.Children.Add(image);
+            }
+            catch
+            {
+                // 头像地址打不开时仍显示昵称。
+            }
+        }
+
         profileCard.Children.Add(Text(string.IsNullOrWhiteSpace(nickname) ? email : nickname, 24));
         if (!string.IsNullOrWhiteSpace(nickname))
         {
@@ -96,6 +121,40 @@ public partial class UserCenterView : UserControl, IRefreshOnShow
         };
         editor.Children.Add(box);
         editor.Children.Add(save);
+        var avatarButton = new Button
+        {
+            Content = "更换头像",
+            Style = (Style)FindResource("GhostButton"),
+            HorizontalAlignment = HorizontalAlignment.Left,
+            Margin = new Thickness(0, 8, 0, 0),
+        };
+        avatarButton.Click += async (_, _) =>
+        {
+            var dialog = new OpenFileDialog { Filter = "图片|*.png;*.jpg;*.jpeg;*.webp" };
+            if (dialog.ShowDialog() != true)
+            {
+                return;
+            }
+
+            try
+            {
+                var uploaded = await AppServices.Api.UploadAsync("/files/upload", dialog.FileName);
+                var url = JsonRead.Str(uploaded, "url");
+                await AppServices.Api.PutAsync("/user/profile", new { nickname = box.Text.Trim(), avatar = url });
+                if (!string.IsNullOrWhiteSpace(box.Text))
+                {
+                    AppServices.Session.Nickname = box.Text.Trim();
+                    AppServices.Session.Save();
+                }
+
+                await ShowAsync("overview");
+            }
+            catch (Exception ex)
+            {
+                editor.Children.Add(Text(ex.Message, danger: true));
+            }
+        };
+        editor.Children.Add(avatarButton);
         var test = new Button
         {
             Content = "英语能力测评",
@@ -360,6 +419,17 @@ public partial class UserCenterView : UserControl, IRefreshOnShow
         Margin = new Thickness(0, 0, 0, 8),
         Foreground = (Brush)FindResource(danger ? "DangerBrush" : "TextBrush"),
     };
+
+    private static string AbsoluteUrl(string url)
+    {
+        if (url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            return url;
+        }
+
+        var origin = AppServices.Api.Origin.TrimEnd('/');
+        return url.StartsWith('/') ? origin + url : origin + "/" + url;
+    }
 
     private static string First(JsonElement element, params string[] names)
     {
