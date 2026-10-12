@@ -239,6 +239,11 @@ public partial class WritingView : UserControl, IRefreshOnShow
 
             _draftId = NullIfEmpty(JsonRead.Str(result, "id")) ?? _draftId;
             _updatedAt = NullIfEmpty(JsonRead.Str(result, "updatedAt")) ?? _updatedAt;
+            if (Application.Current.MainWindow is MainWindow shell)
+            {
+                shell.InvalidatePage("records");
+            }
+
             if (!silent)
             {
                 StatusText.Text = "草稿已保存。";
@@ -330,6 +335,11 @@ public partial class WritingView : UserControl, IRefreshOnShow
             _updatedAt = null;
             _sourceSubmitId = NullIfEmpty(submitId);
             var score = JsonRead.Str(result, "aiScore");
+            if (Application.Current.MainWindow is MainWindow shell)
+            {
+                shell.InvalidatePage("records", "assessment", "user");
+            }
+
             StatusText.Text = string.IsNullOrWhiteSpace(score)
                 ? "已提交。可以在写作记录里回看。"
                 : $"已提交。评分 {score}。可以在写作记录里回看。";

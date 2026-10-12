@@ -159,6 +159,11 @@ public partial class VocabularyView : UserControl, IRefreshOnShow
 
             ClearForm();
             await LoadAsync();
+            if (Application.Current.MainWindow is MainWindow shell)
+            {
+                shell.InvalidatePage("user", "assessment");
+            }
+
             SetStatus(string.IsNullOrWhiteSpace(editingId) ? "已加入词库。" : "已更新这条词。");
         }
         catch (Exception ex)
@@ -185,6 +190,11 @@ public partial class VocabularyView : UserControl, IRefreshOnShow
             await AppServices.Api.DeleteAsync($"/vocabulary/{row.Id}");
             ClearForm();
             await LoadAsync();
+            if (Application.Current.MainWindow is MainWindow shell)
+            {
+                shell.InvalidatePage("user", "assessment");
+            }
+
             SetStatus("已删除。");
         }
         catch (Exception ex)

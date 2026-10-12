@@ -81,6 +81,7 @@ public partial class AdminView : UserControl, IRefreshOnShow
     private JsonElement? _selected;
     private JsonElement? _editing;
     private readonly List<FieldEditor> _fields = [];
+    private readonly Dictionary<string, ModuleCache> _moduleCache = new();
 
     public string CurrentKey => _key;
 
@@ -99,15 +100,49 @@ public partial class AdminView : UserControl, IRefreshOnShow
         return Task.CompletedTask;
     }
 
-    public void ShowModule(string key)
+    public void ShowModule(string key, bool force = false)
     {
         if (!Modules.ContainsKey(key))
         {
             key = "admin:dashboard";
         }
 
+        if (!force && _moduleCache.TryGetValue(key, out var cached))
+        {
+            _key = key;
+            Prepare(key);
+            _page = cached.Page;
+            _totalPages = cached.TotalPages;
+            _period = string.IsNullOrWhiteSpace(cached.Period) ? "7d" : cached.Period;
+            _syncingJson = true;
+            SearchBox.Text = cached.Search;
+            _syncingJson = false;
+            MarkPeriod();
+            Present(cached.Data);
+            if (key == "admin:access" && !string.IsNullOrWhiteSpace(cached.Geo))
+            {
+                GeoHost.Visibility = Visibility.Visible;
+                GeoText.Text = cached.Geo;
+            }
+
+            return;
+        }
+
         _key = key;
         _page = 1;
+        Prepare(key);
+        _creating = false;
+        SaveButton.Content = "保存修改";
+        _syncingJson = true;
+        SearchBox.Text = "";
+        JsonToggle.IsChecked = false;
+        _syncingJson = false;
+        LoadEditor(Modules[key].Summary ? "" : Modules[key].Template ?? "");
+        _ = LoadAsync(++_version);
+    }
+
+    private void Prepare(string key)
+    {
         var module = Modules[key];
         TitleText.Text = module.Title;
         CreateButton.Visibility = module.CreatePath == null ? Visibility.Collapsed : Visibility.Visible;
@@ -121,20 +156,13 @@ public partial class AdminView : UserControl, IRefreshOnShow
             "admin:providers" => "启用/停用",
             _ => "更多",
         };
-        var summary = module.Summary;
-        SummaryHost.Visibility = summary ? Visibility.Visible : Visibility.Collapsed;
-        ListHost.Visibility = summary ? Visibility.Collapsed : Visibility.Visible;
-        PagerBar.Visibility = summary ? Visibility.Collapsed : Visibility.Visible;
+        SummaryHost.Visibility = module.Summary ? Visibility.Visible : Visibility.Collapsed;
+        ListHost.Visibility = module.Summary ? Visibility.Collapsed : Visibility.Visible;
+        PagerBar.Visibility = module.Summary ? Visibility.Collapsed : Visibility.Visible;
         SearchBox.Visibility = key is "admin:users" or "admin:topics" or "admin:questions" ? Visibility.Visible : Visibility.Collapsed;
         PeriodBar.Visibility = key == "admin:dashboard" ? Visibility.Visible : Visibility.Collapsed;
-        MarkPeriod();
         _creating = false;
         SaveButton.Content = "保存修改";
-        _syncingJson = true;
-        JsonToggle.IsChecked = false;
-        _syncingJson = false;
-        LoadEditor(summary ? "" : module.Template ?? "");
-        _ = LoadAsync(++_version);
     }
 
     private async void PeriodClick(object sender, RoutedEventArgs e)
@@ -205,63 +233,8 @@ public partial class AdminView : UserControl, IRefreshOnShow
             }
 
             _totalPages = Math.Max(1, JsonRead.Int(data, "totalPages", 1));
-            PageText.Text = $"{_page} / {_totalPages}";
-            var items = JsonRead.Items(data).ToList();
-            if (module.Summary)
-            {
-                RenderSummary(data);
-                return;
-            }
-
-            if (items.Count == 0)
-            {
-                Table.ItemsSource = null;
-                Table.Columns.Clear();
-                LoadEditor("");
-                StatusText.Text = "没有数据。";
-                if (_key == "admin:access")
-                {
-                    await LoadGeoAsync(version);
-                }
-                else
-                {
-                    GeoHost.Visibility = Visibility.Collapsed;
-                }
-
-                return;
-            }
-
-            var columns = module.Columns.Length > 0
-                ? module.Columns
-                : items[0].EnumerateObject().Where(p => p.Value.ValueKind is JsonValueKind.String or JsonValueKind.Number or JsonValueKind.True or JsonValueKind.False).Select(p => p.Name).Take(6).ToArray();
-            var rows = items.Select(item =>
-            {
-                var cells = new Dictionary<string, string>();
-                foreach (var column in columns)
-                {
-                    cells[column] = CellText(item, column);
-                }
-
-                return new Row(item, cells);
-            }).ToList();
-            Table.Columns.Clear();
-            foreach (var column in columns)
-            {
-                Table.Columns.Add(new DataGridTextColumn
-                {
-                    Header = Headers.TryGetValue(column, out var header) ? header : column,
-                    Binding = new Binding($"Cells[{column}]"),
-                    Width = new DataGridLength(1, DataGridLengthUnitType.Star),
-                });
-            }
-
-            Table.ItemsSource = rows;
-            StatusText.Text = "共 " + rows.Count + " 条。选中一行后，在右侧表单里修改再保存。";
-            if (rows.Count > 0)
-            {
-                Table.SelectedIndex = 0;
-            }
-
+            Remember(data);
+            Present(data);
             if (_key == "admin:access")
             {
                 await LoadGeoAsync(version);
@@ -986,6 +959,70 @@ public partial class AdminView : UserControl, IRefreshOnShow
         return column.EndsWith("At", StringComparison.Ordinal) ? FormatTime(text) : text;
     }
 
+    private void Present(JsonElement data)
+    {
+        var module = Modules[_key];
+        PageText.Text = $"{_page} / {_totalPages}";
+        var items = JsonRead.Items(data).ToList();
+        if (module.Summary)
+        {
+            RenderSummary(data);
+            return;
+        }
+
+        if (items.Count == 0)
+        {
+            Table.ItemsSource = null;
+            Table.Columns.Clear();
+            LoadEditor("");
+            StatusText.Text = "没有数据。";
+            return;
+        }
+
+        var columns = module.Columns.Length > 0
+            ? module.Columns
+            : items[0].EnumerateObject().Where(p => p.Value.ValueKind is JsonValueKind.String or JsonValueKind.Number or JsonValueKind.True or JsonValueKind.False).Select(p => p.Name).Take(6).ToArray();
+        var rows = items.Select(item =>
+        {
+            var cells = new Dictionary<string, string>();
+            foreach (var column in columns)
+            {
+                cells[column] = CellText(item, column);
+            }
+
+            return new Row(item, cells);
+        }).ToList();
+        Table.Columns.Clear();
+        foreach (var column in columns)
+        {
+            Table.Columns.Add(new DataGridTextColumn
+            {
+                Header = Headers.TryGetValue(column, out var header) ? header : column,
+                Binding = new Binding($"Cells[{column}]"),
+                Width = new DataGridLength(1, DataGridLengthUnitType.Star),
+            });
+        }
+
+        Table.ItemsSource = rows;
+        StatusText.Text = "共 " + rows.Count + " 条。选中一行后，在右侧表单里修改再保存。";
+        if (rows.Count > 0)
+        {
+            Table.SelectedIndex = 0;
+        }
+    }
+
+    private void Remember(JsonElement data)
+    {
+        _moduleCache[_key] = new ModuleCache
+        {
+            Data = data.Clone(),
+            Page = _page,
+            TotalPages = _totalPages,
+            Search = SearchBox.Text ?? "",
+            Period = _period,
+        };
+    }
+
     private void LoadEditor(string json)
     {
         _syncingJson = true;
@@ -1144,6 +1181,10 @@ public partial class AdminView : UserControl, IRefreshOnShow
                 return $"{label} {JsonRead.Str(item, "count")}";
             }).Where(line => !string.IsNullOrWhiteSpace(line)).ToList();
             GeoText.Text = lines.Count == 0 ? "这段时间没有可统计的访问地区。" : string.Join("    ", lines);
+            if (_moduleCache.TryGetValue("admin:access", out var cached))
+            {
+                cached.Geo = GeoText.Text;
+            }
         }
         catch (Exception ex)
         {
@@ -1169,4 +1210,14 @@ public partial class AdminView : UserControl, IRefreshOnShow
     }
 
     private sealed record FieldEditor(string Name, JsonValueKind Kind, TextBox? Box, CheckBox? Check, bool OriginalNull);
+
+    private sealed class ModuleCache
+    {
+        public JsonElement Data { get; init; }
+        public int Page { get; init; }
+        public int TotalPages { get; init; }
+        public string Search { get; init; } = "";
+        public string Period { get; init; } = "7d";
+        public string? Geo { get; set; }
+    }
 }

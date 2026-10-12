@@ -163,6 +163,11 @@ public partial class RecordsView : UserControl, IRefreshOnShow
         try
         {
             await AppServices.Api.DeleteAsync(_drafts ? $"/writings/drafts/{_selectedId}" : $"/writings/submits/{_selectedId}");
+            if (Application.Current.MainWindow is MainWindow shell)
+            {
+                shell.InvalidatePage("assessment", "user");
+            }
+
             await LoadAsync();
             DetailTitle.Text = "";
             DetailBody.Text = "";

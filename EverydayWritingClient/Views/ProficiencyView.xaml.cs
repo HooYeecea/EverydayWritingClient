@@ -35,6 +35,7 @@ public partial class ProficiencyView : UserControl, IRefreshOnShow
                 {
                     if (Application.Current.MainWindow is MainWindow shell)
                     {
+                        shell.InvalidatePage("user");
                         shell.Navigate("user");
                     }
 

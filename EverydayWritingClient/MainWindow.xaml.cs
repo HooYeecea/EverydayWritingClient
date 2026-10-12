@@ -1,6 +1,7 @@
 ﻿using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Shapes;
 using EverydayWritingClient.Services;
 using EverydayWritingClient.Views;
@@ -10,7 +11,9 @@ namespace EverydayWritingClient;
 public partial class MainWindow : Window
 {
     private readonly Dictionary<string, UserControl> _pages = new();
+    private readonly HashSet<string> _seen = [];
     private readonly List<Button> _navButtons = [];
+    private int _fadeVersion;
     private bool _collapsed;
     private bool _adminMode;
     private string _current = "writing";
@@ -31,7 +34,7 @@ public partial class MainWindow : Window
         Loaded += async (_, _) => await StartAsync();
     }
 
-    public void Navigate(string key)
+    public void Navigate(string key, bool force = false)
     {
         if (NavigationLocked && key is not ("writing" or "login"))
         {
@@ -46,14 +49,37 @@ public partial class MainWindow : Window
             return;
         }
 
-        _current = key;
-        PageHost.Content = GetPage(key);
-        if (PageHost.Content is IRefreshOnShow refresh)
+        var page = GetPage(key);
+        if (!force && _current == key && ReferenceEquals(PageHost.Content, page))
         {
-            _ = refresh.RefreshAsync();
+            HighlightNav(key);
+            return;
         }
 
+        var load = force || !_seen.Contains(key);
+        _current = key;
+        if (load)
+        {
+            _seen.Add(key);
+        }
+
+        Transition(() =>
+        {
+            PageHost.Content = page;
+            if (load && page is IRefreshOnShow refresh)
+            {
+                _ = refresh.RefreshAsync();
+            }
+        });
         HighlightNav(key);
+    }
+
+    public void InvalidatePage(params string[] keys)
+    {
+        foreach (var key in keys)
+        {
+            _seen.Remove(key);
+        }
     }
 
     public void ContinueDraft(string draftId)
@@ -130,6 +156,60 @@ public partial class MainWindow : Window
         }
 
         Navigate(AppServices.Session.DefaultHome);
+    }
+
+    private void OpenAdmin(string key)
+    {
+        if (NavigationLocked)
+        {
+            Dialogs.Alert("专注写作已锁定页面切换。先在写作页关闭专注锁。", "专注写作");
+            return;
+        }
+
+        var page = (AdminView)GetPage("admin");
+        if (ReferenceEquals(PageHost.Content, page) && page.CurrentKey == key)
+        {
+            HighlightNav(key);
+            return;
+        }
+
+        _current = "admin";
+        _seen.Add("admin");
+        Transition(() =>
+        {
+            PageHost.Content = page;
+            page.ShowModule(key);
+        });
+        HighlightNav(key);
+    }
+
+    private void Transition(Action swap)
+    {
+        if (PageHost.Content == null)
+        {
+            swap();
+            return;
+        }
+
+        var version = ++_fadeVersion;
+        var fadeOut = new DoubleAnimation(PageHost.Opacity, 0, TimeSpan.FromMilliseconds(90))
+        {
+            EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseIn },
+        };
+        fadeOut.Completed += (_, _) =>
+        {
+            if (version != _fadeVersion)
+            {
+                return;
+            }
+
+            swap();
+            PageHost.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(160))
+            {
+                EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut },
+            });
+        };
+        PageHost.BeginAnimation(OpacityProperty, fadeOut);
     }
 
     private UserControl GetPage(string key)
@@ -236,12 +316,7 @@ public partial class MainWindow : Window
         {
             if (key.StartsWith("admin:", StringComparison.Ordinal))
             {
-                Navigate("admin");
-                if (PageHost.Content is AdminView admin)
-                {
-                    admin.ShowModule(key);
-                }
-                HighlightNav(key);
+                OpenAdmin(key);
                 return;
             }
 
@@ -316,6 +391,7 @@ public partial class MainWindow : Window
 
         AppServices.Session.ClearAuth();
         _pages.Clear();
+        _seen.Clear();
         _adminMode = false;
         NavigationLocked = false;
         BuildNav();
@@ -324,9 +400,8 @@ public partial class MainWindow : Window
 
     public void OnLoggedIn()
     {
-        _pages.Remove("login");
-        _pages.Remove("register");
-        _pages.Remove("reset");
+        _pages.Clear();
+        _seen.Clear();
         _adminMode = AppServices.Session.IsAdminOnly;
         BuildNav();
         if (AppServices.Session.MustChangePassword)
